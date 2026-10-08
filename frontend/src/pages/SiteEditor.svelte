@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import {
-    ArrowLeft, ArrowRight, CopyPlus, Trash2, Sparkles, Server, Folder, CornerUpRight, MessageSquare, Code, Activity,
+    Radar, ArrowLeft, ArrowRight, CopyPlus, Trash2, Sparkles, Server, Folder, CornerUpRight, MessageSquare, Code, Activity,
     Route, ShieldCheck, Lock, Gauge, Construction, ChevronDown, Plus, Check, Info, CircleAlert, Fingerprint,
   } from '@lucide/svelte'
   import { api } from '../lib/api.js'
@@ -13,6 +13,7 @@
   import Switch from '../lib/Switch.svelte'
   import Avatar from '../lib/Avatar.svelte'
   import HostInput from '../lib/HostInput.svelte'
+  import ScanModal from '../lib/ScanModal.svelte'
   import { knownDomains } from '../lib/domains.js'
   import { templates } from '../lib/templates.js'
 
@@ -36,6 +37,25 @@
   let domainList = $state([])
   let defaultDomain = $state('')
   let hostKey = $state(0)
+  let scanning = $state(false)
+
+  // Quick fill from a scan result: upstream, and name/hostname if still empty.
+  function usePick(r) {
+    scanning = false
+    const p = site.config.proxy
+    const ups = p.upstreams.filter((u) => u.trim())
+    p.upstreams = ups.length > 1 ? [...ups, r.upstream] : [r.upstream]
+    if (r.scheme === 'https') p.tls_skip_verify = true
+    const label = (r.guess || r.host || '').trim()
+    const slug = label.toLowerCase().split(/[^a-z0-9]+/).find((w) => w.length > 1) || ''
+    if (!site.name && label) site.name = label
+    const empty = site.hosts.every((h) => !h.trim() || domainList.includes(h.trim()))
+    if (empty && slug && defaultDomain && !/^\d/.test(slug)) {
+      site.hosts = [`${slug}.${defaultDomain}`]
+      hostKey++
+    }
+    toast(`Using ${r.upstream}${r.scheme === 'https' ? ' (self-signed certificates allowed)' : ''}`)
+  }
 
   const feat = (fid) => (app.meta?.features || []).find((f) => f.id === fid)
   const available = (fid) => feat(fid)?.available !== false
@@ -231,7 +251,7 @@
 
       {#if site.kind === 'proxy'}
         <div class="field">
-          <span>Upstream address</span>
+          <span class="row tight">Upstream address <button class="btn xs right" type="button" onclick={() => (scanning = true)}><Radar size={14} /> Find app</button></span>
           <ListInput bind:items={site.config.proxy.upstreams} placeholder="jellyfin:8096" addLabel="Add upstream" />
           <span class="hint">Where the app listens, as <code>address:port</code>. For a Docker container on a network shared with Caddy, use its container name (<code>jellyfin:8096</code>). For anything else, use the machine's IP (<code>10.0.1.5:32400</code>). Add more than one to load-balance.</span>
         </div>
@@ -463,6 +483,8 @@
     </div>
   {/if}
 {/if}
+
+{#if scanning}<ScanModal onpick={usePick} onclose={() => (scanning = false)} />{/if}
 
 <style>
   fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
