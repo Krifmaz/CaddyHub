@@ -1,4 +1,5 @@
 <script>
+  import { Plus, Bell, Send } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, loadMeta } from '../lib/state.svelte.js'
@@ -49,11 +50,11 @@
 
 <div class="page-head">
   <div><h1>Notifications</h1><div class="sub">Get told when an apply fails or something needs attention.</div></div>
-  <button class="btn primary right" onclick={() => open(null)}>+ Add channel</button>
+  <button class="btn primary right" onclick={() => open(null)}><Plus size={16} /> Add channel</button>
 </div>
 
 {#if channels.length === 0}
-  <div class="card empty"><p>No channels yet. ntfy, Gotify, Discord, Slack, email and plain webhooks are supported.</p></div>
+  <div class="card empty"><div class="icon-wrap"><Bell size={22} /></div><p>No channels yet. ntfy, Gotify, Discord, Slack, email and plain webhooks are supported.</p></div>
 {:else}
   <div class="card flush table-wrap">
     <table class="list">
@@ -93,7 +94,7 @@
     {#if error}<div class="alert err">{error}</div>{/if}
     {#snippet footer()}
       {#if edit.id}<button class="btn danger" style="margin-right:auto" onclick={del}>Delete</button>{/if}
-      <button class="btn" onclick={test} disabled={testing}>{testing ? 'Sending…' : 'Send test'}</button>
+      <button class="btn" onclick={test} disabled={testing}><Send size={15} /> {testing ? 'Sending…' : 'Send test'}</button>
       <button class="btn primary" onclick={save}>Save</button>
     {/snippet}
   </Modal>

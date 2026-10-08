@@ -1,4 +1,5 @@
 <script>
+  import { Plus, ShieldCheck, KeyRound, TriangleAlert, Info, Pencil, Trash2 } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, refreshStatus, loadMeta } from '../lib/state.svelte.js'
@@ -62,7 +63,7 @@
 
 <div class="stack">
   <div class="card stack">
-    <div class="row"><h2 style="margin:0">Domains</h2><button class="btn sm right" onclick={newDomain}>+ Add domain</button></div>
+    <div class="card-head"><span class="h-ic"><ShieldCheck size={18} /></span><div><h2>Domains</h2><div class="desc">Certificate validation per domain</div></div><button class="btn sm right" onclick={newDomain}><Plus size={15} /> Add domain</button></div>
     {#if domains.length === 0}
       <p class="muted">No domains configured. Every site uses Caddy's automatic HTTPS.</p>
     {:else}
@@ -75,8 +76,8 @@
               <td>{challengeLabel[d.challenge] || d.challenge}</td>
               <td class="hide-sm">{d.credential_id ? credName(d.credential_id) : '—'}</td>
               <td class="nowrap right-cell">
-                <button class="btn sm" onclick={() => { error = ''; editDom = { ...d } }}>Edit</button>
-                <button class="btn sm danger" onclick={() => delDomain(d)}>Remove</button>
+                <button class="btn xs" onclick={() => { error = ''; editDom = { ...d } }}><Pencil size={13} /> Edit</button>
+                <button class="btn ghost icon xs danger" aria-label="Remove" onclick={() => delDomain(d)}><Trash2 size={14} /></button>
               </td>
             </tr>
           {/each}
@@ -86,7 +87,7 @@
   </div>
 
   <div class="card stack">
-    <div class="row"><h2 style="margin:0">DNS provider accounts</h2><button class="btn sm right" onclick={newCred}>+ Add account</button></div>
+    <div class="card-head"><span class="h-ic"><KeyRound size={18} /></span><div><h2>DNS provider accounts</h2><div class="desc">API tokens, encrypted at rest</div></div><button class="btn sm right" onclick={newCred}><Plus size={15} /> Add account</button></div>
     {#if creds.length === 0}
       <p class="muted">API credentials for your DNS provider, used for DNS validation. Stored encrypted.</p>
     {:else}
@@ -98,8 +99,8 @@
               <td><strong>{c.name}</strong></td>
               <td>{prov(c.provider)?.name || c.provider} {#if prov(c.provider) && !prov(c.provider).available}<span class="badge warn">plugin missing</span>{/if}</td>
               <td class="nowrap right-cell">
-                <button class="btn sm" onclick={() => openCred(c)}>Edit</button>
-                <button class="btn sm danger" onclick={() => delCred(c)}>Delete</button>
+                <button class="btn xs" onclick={() => openCred(c)}><Pencil size={13} /> Edit</button>
+                <button class="btn ghost icon xs danger" aria-label="Delete" onclick={() => delCred(c)}><Trash2 size={14} /></button>
               </td>
             </tr>
           {/each}
@@ -145,12 +146,12 @@
       </select></label>
     {#if cp}
       {#if !cp.available}
-        <div class="alert warn">Your Caddy build doesn't include the <code>{cp.plugin}</code> plugin. Add it to your Caddy image (see README) before using this provider.</div>
+        <div class="alert warn"><TriangleAlert /><span>Your Caddy build doesn't include the <code>{cp.plugin}</code> plugin. Add it to your Caddy image (see README) before using this provider.</span></div>
       {/if}
-      <div class="alert info small">{cp.privilege} {#if cp.docs_url}<a href={cp.docs_url} target="_blank" rel="noreferrer">How to create a token ↗</a>{/if}</div>
+      <div class="alert info small"><Info /><span>{cp.privilege} {#if cp.docs_url}<a href={cp.docs_url} target="_blank" rel="noreferrer">How to create a token</a>{/if}</span></div>
       <label class="field"><span>Name</span><input type="text" bind:value={editCred.name} placeholder={cp.name} /></label>
       {#each cp.fields as f}
-        <label class="field"><span>{f.label}{f.required ? '' : ' (optional)'}</span>
+        <label class="field"><span>{f.label}{f.required || /optional/i.test(f.label) ? '' : ' (optional)'}</span>
           <input type={f.secret ? 'password' : 'text'} bind:value={editCred.fields[f.key]} autocomplete="off"
             placeholder={f.secret && editCred.set?.[f.key] ? '•••••• (saved; leave empty to keep)' : f.default || ''} />
           {#if f.help}<span class="hint">{f.help}</span>{/if}
@@ -168,4 +169,5 @@
 
 <style>
   .right-cell { text-align: right; }
+  .h-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-soft-text); flex: none; }
 </style>

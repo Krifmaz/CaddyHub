@@ -1,4 +1,5 @@
 <script>
+  import { Upload, ScanSearch, FileInput } from '@lucide/svelte'
   import { api } from '../lib/api.js'
   import { toast, toastErr, refreshStatus } from '../lib/state.svelte.js'
   import { go } from '../lib/router.svelte.js'
@@ -47,11 +48,11 @@
 <div class="stack">
   <div class="card stack">
     <div class="row">
-      <label class="btn sm">Choose file… <input type="file" class="hidden" onchange={file} /></label>
+      <label class="btn sm"><Upload size={15} /> Choose file… <input type="file" class="hidden" onchange={file} /></label>
       <span class="muted small">or paste below</span>
     </div>
     <textarea rows="14" bind:value={text} placeholder={ph}></textarea>
-    <div><button class="btn primary" onclick={analyze} disabled={busy || !text.trim()}>Analyze</button></div>
+    <div><button class="btn primary" onclick={analyze} disabled={busy || !text.trim()}><ScanSearch size={15} /> Analyze</button></div>
   </div>
 
   {#if preview}
@@ -75,7 +76,7 @@
       <p class="muted small"><strong>structured</strong>: fully editable with forms · <strong>partial</strong>: forms plus leftover directives in the site's custom box · <strong>raw</strong>: kept verbatim as a raw block</p>
       <label class="check"><input type="checkbox" bind:checked={settings} /> Also import global options (email, certificate authority, other options)</label>
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace my existing sites (otherwise sites whose hostnames already exist are skipped)</label>
-      <div class="row"><button class="btn primary" onclick={commit} disabled={busy}>Import</button></div>
+      <div class="row"><button class="btn primary" onclick={commit} disabled={busy}><FileInput size={15} /> Import</button></div>
     </div>
   {/if}
 

@@ -1,4 +1,5 @@
 <script>
+  import { Copy, Check, Download, TriangleAlert } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { toastErr } from '../lib/state.svelte.js'
@@ -17,13 +18,13 @@
   </div>
   {#if out}
     <div class="row right">
-      <button class="btn" onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
-      <button class="btn primary" onclick={() => download('Caddyfile', out.caddyfile)}>Download</button>
+      <button class="btn" onclick={copy}>{#if copied}<Check size={15} /> Copied{:else}<Copy size={15} /> Copy{/if}</button>
+      <button class="btn primary" onclick={() => download('Caddyfile', out.caddyfile)}><Download size={15} /> Download</button>
     </div>
   {/if}
 </div>
 {#if out}
-  {#each out.warnings || [] as w}<div class="alert warn" style="margin-bottom:10px">{w}</div>{/each}
+  {#each out.warnings || [] as w}<div class="alert warn" style="margin-bottom:10px"><TriangleAlert /><span>{w}</span></div>{/each}
   <pre>{out.caddyfile}</pre>
   <p class="muted small" style="margin-top:10px">Want to change something CaddyHub has no field for? Use a site's “Custom Caddyfile” box, a snippet, or a raw block. Editing this file directly would be overwritten on the next apply.</p>
 {:else}

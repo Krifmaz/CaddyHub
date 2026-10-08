@@ -1,4 +1,5 @@
 <script>
+  import { History as HistoryIcon, Download, Undo2 } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { toast, toastErr, refreshStatus, can } from '../lib/state.svelte.js'
@@ -54,7 +55,7 @@
 {#if versions === null}
   <p class="muted">Loading…</p>
 {:else if versions.length === 0}
-  <div class="card empty"><h2>Nothing applied yet</h2><p>Versions appear here once you apply a config.</p></div>
+  <div class="card empty"><div class="icon-wrap"><HistoryIcon size={22} /></div><h2>Nothing applied yet</h2><p>Versions appear here once you apply a config.</p></div>
 {:else}
   <div class="card flush table-wrap">
     <table class="list">
@@ -96,8 +97,8 @@
       <p class="muted">Loading…</p>
     {/if}
     {#snippet footer()}
-      <button class="btn" onclick={() => download(`Caddyfile.v${open.id}`, open.caddyfile)}>Download</button>
-      {#if can.edit() && open.good}<button class="btn primary" onclick={rollback} disabled={busy}>Restore this version</button>{/if}
+      <button class="btn" onclick={() => download(`Caddyfile.v${open.id}`, open.caddyfile)}><Download size={15} /> Download</button>
+      {#if can.edit() && open.good}<button class="btn primary" onclick={rollback} disabled={busy}><Undo2 size={15} /> Restore this version</button>{/if}
     {/snippet}
   </Modal>
 {/if}

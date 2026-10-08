@@ -1,4 +1,5 @@
 <script>
+  import { Plus, Braces, FileCode, Check, Pencil } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { toast, toastErr, refreshStatus, can } from '../lib/state.svelte.js'
@@ -60,9 +61,9 @@
 
 {#if tab === 'snippets'}
   <div class="stack">
-    {#if can.edit()}<div><button class="btn primary" onclick={() => open('snippet')}>+ New snippet</button></div>{/if}
+    {#if can.edit()}<div><button class="btn primary" onclick={() => open('snippet')}><Plus size={16} /> New snippet</button></div>{/if}
     {#if snippets.length === 0}
-      <div class="card empty"><p>Example: a “security-headers” snippet with HSTS and X-Frame-Options that you tick on every site.</p></div>
+      <div class="card empty"><div class="icon-wrap"><Braces size={22} /></div><p>Example: a “security-headers” snippet with HSTS and X-Frame-Options that you tick on every site.</p></div>
     {/if}
     {#each snippets as sn}
       <button class="card item" onclick={() => open('snippet', sn)}>
@@ -73,9 +74,9 @@
   </div>
 {:else}
   <div class="stack">
-    {#if can.admin()}<div><button class="btn primary" onclick={() => open('block')}>+ New raw block</button></div>{/if}
+    {#if can.admin()}<div><button class="btn primary" onclick={() => open('block')}><Plus size={16} /> New raw block</button></div>{/if}
     {#if blocks.length === 0}
-      <div class="card empty"><p>Raw blocks hold top-level Caddyfile text, e.g. sites using features CaddyHub doesn't model. Imported blocks it couldn't understand also land here, untouched.</p></div>
+      <div class="card empty"><div class="icon-wrap"><FileCode size={22} /></div><p>Raw blocks hold top-level Caddyfile text, e.g. sites using features CaddyHub doesn't model. Imported blocks it couldn't understand also land here, untouched.</p></div>
     {/if}
     {#each blocks as b}
       <div class="card stack">
@@ -85,7 +86,7 @@
           <span class="right row">
             {#if can.admin()}
               <Switch checked={b.enabled} label="Enabled" onchange={(v) => toggleBlock(b, v)} />
-              <button class="btn sm" onclick={() => open('block', b)}>Edit</button>
+              <button class="btn xs" onclick={() => open('block', b)}><Pencil size={13} /> Edit</button>
             {/if}
           </span>
         </div>
@@ -108,7 +109,7 @@
       <textarea rows="14" bind:value={edit.body} placeholder={edit.type === 'snippet' ? snippetPh : blockPh}></textarea>
     </label>
     <div class="row">
-      <button class="btn sm" onclick={validate}>Check syntax</button>
+      <button class="btn sm" onclick={validate}><Check size={15} /> Check syntax</button>
       {#if check}{#if check.valid}<span class="badge ok">looks valid</span>{:else}<span class="mono small" style="color:var(--danger)">{check.error}</span>{/if}{/if}
     </div>
     {#if error}<div class="alert err">{error}</div>{/if}

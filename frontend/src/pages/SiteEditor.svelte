@@ -1,5 +1,9 @@
 <script>
   import { onMount } from 'svelte'
+  import {
+    ArrowLeft, ArrowRight, CopyPlus, Trash2, Sparkles, Server, Folder, CornerUpRight, MessageSquare, Code, Activity,
+    Route, ShieldCheck, Lock, Gauge, Construction, ChevronDown, Plus, Check, Info, CircleAlert, Fingerprint,
+  } from '@lucide/svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, refreshStatus, loadMeta, can } from '../lib/state.svelte.js'
   import { go } from '../lib/router.svelte.js'
@@ -7,6 +11,7 @@
   import ListInput from '../lib/ListInput.svelte'
   import KVInput from '../lib/KVInput.svelte'
   import Switch from '../lib/Switch.svelte'
+  import Avatar from '../lib/Avatar.svelte'
   import { templates } from '../lib/templates.js'
 
   let { id } = $props()
@@ -147,23 +152,36 @@
   const ro = $derived(!can.edit())
 </script>
 
+{#snippet sec(Icon, title, desc)}
+  <span class="s-icon"><Icon size={16} /></span>
+  <span class="s-text"><span>{title}</span><small>{desc}</small></span>
+  <ChevronDown size={18} class="chev" />
+{/snippet}
+
 {#if !site}
-  <p class="muted">Loading…</p>
+  <div class="card skel-editor"></div>
 {:else}
-  <div class="page-head">
-    <a class="btn ghost sm" href="#/sites">← Sites</a>
-    <h1 class="grow">{isNew ? 'New site' : site.name}</h1>
-    {#if !isNew && can.edit()}
-      <button class="btn sm" onclick={duplicate}>Duplicate</button>
-      <button class="btn sm danger" onclick={remove}>Delete</button>
-    {/if}
+  <div class="head">
+    <a class="btn ghost sm back" href="#/sites"><ArrowLeft size={16} /> Sites</a>
+    <div class="head-main">
+      <Avatar name={site.name || site.hosts.find((h) => h.trim()) || '?'} size={48} />
+      <div class="grow">
+        <h1 class="truncate">{isNew ? 'New site' : site.name}</h1>
+        <div class="muted small truncate">{site.hosts.filter((h) => h.trim()).join(', ') || 'Add a hostname below'}</div>
+      </div>
+      {#if !isNew && can.edit()}
+        <button class="btn sm" onclick={duplicate}><CopyPlus size={15} /> Duplicate</button>
+        <button class="btn sm danger" onclick={remove}><Trash2 size={15} /> Delete</button>
+      {/if}
+    </div>
   </div>
 
   <fieldset class="stack" disabled={ro}>
     {#if isNew}
-      <div class="card row">
-        <span class="grow"><strong>Start from a template</strong> <span class="muted">(optional): sensible defaults for common self-hosted apps</span></span>
-        <select style="max-width:260px" onchange={(e) => applyTemplate(templates.find((t) => t.id === e.target.value))}>
+      <div class="card tpl">
+        <span class="tpl-ic"><Sparkles size={18} /></span>
+        <div class="grow"><strong>Start from a template</strong><div class="muted small">Sensible defaults for common self-hosted apps.</div></div>
+        <select style="max-width:240px" onchange={(e) => applyTemplate(templates.find((t) => t.id === e.target.value))}>
           <option value="">Choose an app…</option>
           {#each templates as t}<option value={t.id}>{t.name}</option>{/each}
         </select>
@@ -171,47 +189,46 @@
     {/if}
 
     <div class="card stack">
-      <div class="grid2">
-        <label class="field"><span>Name</span><input type="text" bind:value={site.name} placeholder="My app" /></label>
-        <label class="field"><span>Tags</span><input type="text" bind:value={tagText} placeholder="media, home (comma separated)" /></label>
+      <div class="card-head"><div><h2>Basics</h2><div class="desc">Where this site lives.</div></div>
+        <label class="row tight right enabled"><Switch bind:checked={site.enabled} label="Enabled" /> <span class="small">{site.enabled ? 'Enabled' : 'Disabled'}</span></label>
       </div>
       <div class="field">
         <span>Hostnames</span>
         <ListInput bind:items={site.hosts} placeholder="app.example.com" addLabel="Add hostname" />
-        <span class="hint">The address(es) people type in their browser. HTTPS certificates are obtained automatically.</span>
+        <span class="hint">The address people type in their browser. HTTPS certificates are obtained automatically.</span>
       </div>
-      <div class="row">
-        <Switch bind:checked={site.enabled} label="Enabled" /> <span>Enabled</span>
+      <div class="grid2">
+        <label class="field"><span>Display name</span><input type="text" bind:value={site.name} placeholder="Defaults to the hostname" /></label>
+        <label class="field"><span>Tags</span><input type="text" bind:value={tagText} placeholder="media, home" /></label>
       </div>
     </div>
 
     <div class="card stack">
-      <h2>What should this site do?</h2>
+      <div class="card-head"><div><h2>What should this site do?</h2><div class="desc">Pick how Caddy handles requests.</div></div></div>
       <div class="kinds">
-        {#each [['proxy', 'Reverse proxy', 'Forward to an app (e.g. localhost:8080)'], ['static', 'File server', 'Serve files from a folder'], ['redirect', 'Redirect', 'Send visitors to another URL'], ['respond', 'Static response', 'Return fixed text / status'], ['none', 'Custom', 'Write raw Caddyfile directives']] as [k, label, desc]}
+        {#each [['proxy', Server, 'Reverse proxy', 'Forward to an app'], ['static', Folder, 'File server', 'Serve a folder'], ['redirect', CornerUpRight, 'Redirect', 'Send elsewhere'], ['respond', MessageSquare, 'Response', 'Fixed text & status'], ['none', Code, 'Custom', 'Raw Caddyfile']] as [k, Icon, label, desc]}
           <label class="kind" class:active={site.kind === k}>
             <input type="radio" name="kind" value={k} bind:group={site.kind} />
-            <strong>{label}</strong><span class="muted small">{desc}</span>
+            <span class="k-ic"><Icon size={18} /></span>
+            <strong>{label}</strong><span class="muted xs">{desc}</span>
           </label>
         {/each}
       </div>
 
       {#if site.kind === 'proxy'}
         <div class="field">
-          <span>Upstream address(es)</span>
+          <span>Upstream address</span>
           <ListInput bind:items={site.config.proxy.upstreams} placeholder="localhost:8080 or https://10.0.0.5:8443" addLabel="Add upstream" />
-          <span class="hint">Where your app is listening. More than one = load balancing.</span>
+          <span class="hint">Where your app listens. Add more than one to load-balance.</span>
         </div>
         <div class="checks">
           <label class="check"><input type="checkbox" bind:checked={site.config.proxy.websocket} /> WebSockets / streaming</label>
-          <label class="check"><input type="checkbox" bind:checked={site.config.proxy.tls_skip_verify} /> Upstream uses a self-signed certificate (skip verify)</label>
+          <label class="check"><input type="checkbox" bind:checked={site.config.proxy.tls_skip_verify} /> Upstream uses a self-signed certificate</label>
           <label class="check"><input type="checkbox" bind:checked={site.config.proxy.h2c} /> gRPC / h2c upstream</label>
         </div>
       {:else if site.kind === 'static'}
-        <div class="grid2">
-          <label class="field"><span>Folder</span><input type="text" bind:value={site.config.static.root} placeholder="/srv/www" />
-            <span class="hint">Path inside the Caddy container.</span></label>
-        </div>
+        <label class="field"><span>Folder</span><input type="text" bind:value={site.config.static.root} placeholder="/srv/www" />
+          <span class="hint">Path inside the Caddy container.</span></label>
         <div class="checks">
           <label class="check"><input type="checkbox" bind:checked={site.config.static.browse} /> Show directory listings</label>
           <label class="check"><input type="checkbox" bind:checked={site.config.static.spa} /> Single-page app (fall back to index.html)</label>
@@ -233,13 +250,13 @@
         </div>
         <label class="field"><span>Body</span><textarea rows="4" bind:value={site.config.respond.body}></textarea></label>
       {:else}
-        <p class="muted">Write the directives below under “Custom Caddyfile”. They go inside this site's block.</p>
+        <div class="alert info"><Info /><span>Write your directives under <strong>Custom Caddyfile</strong> below. They go inside this site's block.</span></div>
       {/if}
     </div>
 
     {#if site.kind === 'proxy'}
       <details class="section">
-        <summary>Load balancing, health checks & timeouts</summary>
+        <summary>{@render sec(Activity, 'Load balancing & health checks', 'Policies, retries, timeouts and upstream headers')}</summary>
         <div class="body">
           <div class="grid2">
             <label class="field"><span>Load balancing policy</span>
@@ -248,10 +265,10 @@
                 {#each ['round_robin', 'least_conn', 'first', 'ip_hash', 'client_ip_hash', 'uri_hash', 'random_choose 2'] as p}<option value={p}>{p}</option>{/each}
               </select></label>
             <label class="field"><span>Retry for</span><input type="text" bind:value={site.config.proxy.lb_try_duration} placeholder="e.g. 5s" /></label>
-            <label class="field"><span>Active health check path</span><input type="text" bind:value={site.config.proxy.health_uri} placeholder="/health" /></label>
+            <label class="field"><span>Health check path</span><input type="text" bind:value={site.config.proxy.health_uri} placeholder="/health" /></label>
             <label class="field"><span>Check interval</span><input type="text" bind:value={site.config.proxy.health_interval} placeholder="30s" /></label>
-            <label class="field"><span>Passive: mark down after fails</span><input type="number" bind:value={site.config.proxy.max_fails} placeholder="1" /></label>
-            <label class="field"><span>Passive: remember fails for</span><input type="text" bind:value={site.config.proxy.fail_duration} placeholder="30s" /></label>
+            <label class="field"><span>Mark down after fails</span><input type="number" bind:value={site.config.proxy.max_fails} placeholder="1" /></label>
+            <label class="field"><span>Remember fails for</span><input type="text" bind:value={site.config.proxy.fail_duration} placeholder="30s" /></label>
             <label class="field"><span>Dial timeout</span><input type="text" bind:value={site.config.proxy.dial_timeout} placeholder="e.g. 5s" /></label>
             <label class="field"><span>Response header timeout</span><input type="text" bind:value={site.config.proxy.response_header_timeout} placeholder="e.g. 30s" /></label>
             <label class="field"><span>Upstream TLS server name</span><input type="text" bind:value={site.config.proxy.tls_server_name} placeholder="(optional)" /></label>
@@ -264,19 +281,19 @@
     {/if}
 
     <details class="section">
-      <summary>Path routes <span class="muted small">({site.config.routes.length})</span></summary>
+      <summary>{@render sec(Route, 'Path routes', site.config.routes.length ? `${site.config.routes.length} route(s)` : 'Send specific paths somewhere else')}</summary>
       <div class="body">
-        <p class="muted small">Send specific paths somewhere else, e.g. <code>/api/*</code> to a backend. Checked in order, before the main handler.</p>
+        <p class="muted small">For example <code>/api/*</code> to a backend. Checked in order, before the main handler.</p>
         {#each site.config.routes as r, i}
-          <div class="route stack">
+          <div class="route stack tight">
             <div class="row">
-              <input type="text" bind:value={r.path} placeholder="/api/*" style="max-width:200px" />
+              <input type="text" bind:value={r.path} placeholder="/api/*" style="max-width:200px" class="mono" />
               <select value={r.kind} onchange={(e) => routeKind(r, e.target.value)} style="max-width:170px">
                 <option value="proxy">Reverse proxy</option><option value="static">File server</option>
-                <option value="redirect">Redirect</option><option value="respond">Static response</option>
+                <option value="redirect">Redirect</option><option value="respond">Response</option>
               </select>
-              <label class="check"><input type="checkbox" bind:checked={r.strip_prefix} /> Strip prefix</label>
-              <button class="btn ghost sm right" type="button" onclick={() => site.config.routes.splice(i, 1)}>Remove</button>
+              <label class="check small"><input type="checkbox" bind:checked={r.strip_prefix} /> Strip prefix</label>
+              <button class="btn ghost icon sm right" type="button" aria-label="Remove route" onclick={() => site.config.routes.splice(i, 1)}><Trash2 size={15} /></button>
             </div>
             {#if r.kind === 'proxy'}<ListInput bind:items={r.proxy.upstreams} placeholder="localhost:9000" addLabel="Add upstream" />
             {:else if r.kind === 'static'}<input type="text" bind:value={r.static.root} placeholder="/srv/files" />
@@ -284,17 +301,17 @@
             {:else}<div class="row"><input type="number" bind:value={r.respond.status} style="max-width:100px" /><input type="text" bind:value={r.respond.body} placeholder="Body" class="grow" /></div>{/if}
           </div>
         {/each}
-        <div><button class="btn sm" type="button" onclick={addRoute}>+ Add route</button></div>
+        <div><button class="btn sm" type="button" onclick={addRoute}><Plus size={15} /> Add route</button></div>
       </div>
     </details>
 
     <details class="section">
-      <summary>HTTPS & redirects</summary>
+      <summary>{@render sec(ShieldCheck, 'HTTPS & redirects', 'Certificate source, HTTP→HTTPS and www handling')}</summary>
       <div class="body">
         <div class="grid2">
           <label class="field"><span>Certificate</span>
             <select bind:value={site.config.tls.mode}>
-              <option value="auto">Automatic (Let's Encrypt / your domain settings)</option>
+              <option value="auto">Automatic (Let's Encrypt / domain settings)</option>
               <option value="internal">Caddy internal CA (LAN / self-signed)</option>
               <option value="custom">My own certificate files</option>
               <option value="off">Off (plain HTTP only)</option>
@@ -317,27 +334,27 @@
     </details>
 
     <details class="section">
-      <summary>Access control</summary>
+      <summary>{@render sec(Lock, 'Access control', 'Passwords, IP rules, single sign-on and rate limits')}</summary>
       <div class="body">
         <div class="field">
-          <span>Password protection (basic auth)</span>
+          <span>Password protection</span>
           {#each site.config.access.basic_auth as u, i}
             <div class="row">
               <input type="text" bind:value={u.username} placeholder="username" style="max-width:200px" />
               {#if u.hash?.startsWith('$2')}
-                <span class="muted small">password set</span>
-                <button class="btn sm" type="button" onclick={() => (u.hash = '')}>Change</button>
+                <span class="badge ok"><Check /> password set</span>
+                <button class="btn xs" type="button" onclick={() => (u.hash = '')}>Change</button>
               {:else}
                 <input type="password" bind:value={u.hash} placeholder="new password" style="max-width:220px" autocomplete="new-password" />
               {/if}
-              <button class="btn ghost sm" type="button" onclick={() => site.config.access.basic_auth.splice(i, 1)}>Remove</button>
+              <button class="btn ghost icon sm" type="button" aria-label="Remove user" onclick={() => site.config.access.basic_auth.splice(i, 1)}><Trash2 size={15} /></button>
             </div>
           {/each}
-          <div><button class="btn sm" type="button" onclick={() => site.config.access.basic_auth.push({ username: '', hash: '' })}>+ Add user</button></div>
+          <div><button class="btn xs" type="button" onclick={() => site.config.access.basic_auth.push({ username: '', hash: '' })}><Plus size={14} /> Add user</button></div>
         </div>
         <div class="grid2">
           <div class="field"><span>Only allow these IPs / ranges</span><ListInput bind:items={site.config.access.allow_cidrs} placeholder="192.168.1.0/24" addLabel="Add range" />
-            <span class="hint">Leave empty to allow everyone. Use <code>private_ranges</code> for LAN only.</span></div>
+            <span class="hint">Empty = everyone. Use <code>private_ranges</code> for LAN only.</span></div>
           <div class="field"><span>Block these IPs / ranges</span><ListInput bind:items={site.config.access.deny_cidrs} placeholder="203.0.113.7" addLabel="Add range" /></div>
         </div>
         <div class="field">
@@ -351,21 +368,21 @@
               <label class="field"><span>Auth server address</span><input type="text" bind:value={site.config.access.forward_auth.upstream} placeholder="authelia:9091" /></label>
               <label class="field"><span>Verify URI</span><input type="text" bind:value={site.config.access.forward_auth.uri} /></label>
             </div>
-            <div><button class="btn ghost sm" type="button" onclick={() => delete site.config.access.forward_auth}>Remove SSO</button></div>
+            <div><button class="btn ghost xs" type="button" onclick={() => delete site.config.access.forward_auth}>Remove SSO</button></div>
           {:else}
-            <div><button class="btn sm" type="button" onclick={ensureFA}>+ Protect with Authelia / Authentik</button></div>
+            <div><button class="btn xs" type="button" onclick={ensureFA}><Fingerprint size={14} /> Protect with Authelia / Authentik</button></div>
           {/if}
         </div>
         <div class="field">
           <span>Rate limit {#if !available('rate_limit')}<span class="badge warn">plugin not installed</span>{/if}</span>
           {#if site.config.access.rate_limit}
             <div class="row">
-              <input type="number" bind:value={site.config.access.rate_limit.events} style="max-width:110px" /> requests per
-              <input type="text" bind:value={site.config.access.rate_limit.window} style="max-width:90px" /> per client
-              <button class="btn ghost sm" type="button" onclick={() => delete site.config.access.rate_limit}>Remove</button>
+              <input type="number" bind:value={site.config.access.rate_limit.events} style="max-width:110px" /> <span class="muted">requests per</span>
+              <input type="text" bind:value={site.config.access.rate_limit.window} style="max-width:90px" /> <span class="muted">per client</span>
+              <button class="btn ghost xs" type="button" onclick={() => delete site.config.access.rate_limit}>Remove</button>
             </div>
           {:else}
-            <div><button class="btn sm" type="button" onclick={ensureRL} disabled={!available('rate_limit')}>+ Add rate limit</button></div>
+            <div><button class="btn xs" type="button" onclick={ensureRL} disabled={!available('rate_limit')}><Plus size={14} /> Add rate limit</button></div>
           {/if}
         </div>
         {#if available('crowdsec')}
@@ -375,9 +392,9 @@
     </details>
 
     <details class="section">
-      <summary>Headers, compression & limits</summary>
+      <summary>{@render sec(Gauge, 'Headers, compression & limits', 'Response headers, gzip/zstd, upload size, logging')}</summary>
       <div class="body">
-        <div class="checks">
+        <div class="checks row">
           <label class="check"><input type="checkbox" checked={site.config.compression.includes('zstd')} onchange={(e) => toggleComp('zstd', e.target.checked)} /> zstd compression</label>
           <label class="check"><input type="checkbox" checked={site.config.compression.includes('gzip')} onchange={(e) => toggleComp('gzip', e.target.checked)} /> gzip compression</label>
         </div>
@@ -392,7 +409,7 @@
     </details>
 
     <details class="section">
-      <summary>Maintenance mode {#if site.config.maintenance}<span class="badge warn">on</span>{/if}</summary>
+      <summary>{@render sec(Construction, 'Maintenance mode', site.config.maintenance ? 'On: visitors see a maintenance page' : 'Temporarily show a “be right back” page')}</summary>
       <div class="body">
         <label class="check"><input type="checkbox" bind:checked={site.config.maintenance} /> Show a maintenance page instead of the site (HTTP 503)</label>
         {#if site.config.maintenance}
@@ -402,51 +419,67 @@
     </details>
 
     <details class="section" open={site.kind === 'none' || !!site.config.raw}>
-      <summary>Custom Caddyfile {#if site.config.raw}<span class="badge accent">in use</span>{/if}</summary>
+      <summary>{@render sec(Code, 'Custom Caddyfile', site.config.raw ? 'In use' : 'Snippets and extra directives for anything not covered above')}</summary>
       <div class="body">
         {#if snippets.length}
           <div class="field"><span>Include snippets</span>
             <div class="checks">
               {#each snippets as sn}
-                <label class="check"><input type="checkbox" checked={site.config.snippets.includes(sn.name)} onchange={(e) => toggleSnippet(sn.name, e.target.checked)} /> {sn.name} <span class="muted small">{sn.description}</span></label>
+                <label class="check"><input type="checkbox" checked={site.config.snippets.includes(sn.name)} onchange={(e) => toggleSnippet(sn.name, e.target.checked)} /> <span class="mono">{sn.name}</span> <span class="muted small">{sn.description}</span></label>
               {/each}
             </div>
           </div>
         {/if}
-        <label class="field"><span>Extra directives (placed inside this site's block)</span>
+        <label class="field"><span>Extra directives (inside this site's block)</span>
           <textarea rows="8" bind:value={site.config.raw} placeholder={'# anything Caddy supports, e.g.\nheader /static/* Cache-Control "max-age=86400"'}></textarea>
         </label>
         <div class="row">
-          <button class="btn sm" type="button" onclick={checkRaw}>Check syntax</button>
-          {#if rawCheck}{#if rawCheck.valid}<span class="badge ok">looks valid</span>{:else}<span class="mono small err">{rawCheck.error}</span>{/if}{/if}
+          <button class="btn sm" type="button" onclick={checkRaw}><Check size={15} /> Check syntax</button>
+          {#if rawCheck}{#if rawCheck.valid}<span class="badge ok"><Check /> looks valid</span>{:else}<span class="mono small err">{rawCheck.error}</span>{/if}{/if}
         </div>
       </div>
     </details>
   </fieldset>
 
-  {#if error}<div class="alert err" style="margin-top:14px">{error}</div>{/if}
   {#if can.edit()}
-    <div class="actions">
+    <div class="actionbar">
+      {#if error}<div class="alert err grow"><CircleAlert /><span>{error}</span></div>{:else}<span class="muted small grow hide-sm">Saved changes go live after you review and apply.</span>{/if}
       <button class="btn" onclick={() => save(false)} disabled={busy}>Save</button>
-      <button class="btn primary" onclick={() => save(true)} disabled={busy}>Save & review changes</button>
+      <button class="btn primary" onclick={() => save(true)} disabled={busy}>Save & review <ArrowRight size={15} /></button>
     </div>
   {/if}
 {/if}
 
 <style>
   fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-  .kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+  .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+  .back { align-self: flex-start; margin-left: -8px; }
+  .head-main { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .head-main h1 { font-size: 22px; }
+  .tpl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px;
+    background: linear-gradient(120deg, var(--accent-soft), var(--surface) 70%); }
+  .tpl-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--surface); color: var(--accent); border: 1px solid var(--border); flex: none; }
+  .enabled { cursor: pointer; }
+  .kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
   .kind {
-    display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 8px; cursor: pointer; background: var(--surface);
+    position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer; background: var(--surface); transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   }
+  .kind:hover { border-color: var(--border-strong); }
   .kind input { position: absolute; opacity: 0; pointer-events: none; }
-  .kind.active { border-color: var(--accent); background: var(--accent-soft); }
-  .checks { display: flex; flex-direction: column; gap: 8px; }
-  .route { border: 1px dashed var(--border); border-radius: 8px; padding: 10px; gap: 8px; }
-  .actions {
-    position: sticky; bottom: 0; display: flex; gap: 8px; justify-content: flex-end; padding: 14px 0;
-    background: linear-gradient(transparent, var(--bg) 30%); margin-top: 8px;
+  .kind:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ring); }
+  .k-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-2); color: var(--muted); margin-bottom: 6px; transition: 0.15s; }
+  .kind.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .kind.active .k-ic { background: var(--accent); color: var(--accent-text); }
+  .checks { display: flex; flex-direction: column; gap: 10px; }
+  .checks.row { flex-direction: row; gap: 20px; }
+  .route { border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; padding: 12px; }
+  .actionbar {
+    position: sticky; bottom: 16px; z-index: 5; display: flex; gap: 8px; align-items: center; margin-top: 18px;
+    padding: 10px 10px 10px 16px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg);
   }
+  .actionbar .alert { padding: 7px 10px; }
   .err { color: var(--danger); }
+  .skel-editor { height: 420px; }
 </style>

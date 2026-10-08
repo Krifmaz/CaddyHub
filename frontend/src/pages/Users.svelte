@@ -1,4 +1,5 @@
 <script>
+  import { Plus, KeyRound } from '@lucide/svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr } from '../lib/state.svelte.js'
@@ -52,7 +53,7 @@
 
 {#if tab === 'users'}
   <div class="stack">
-    <div><button class="btn primary" onclick={() => { error = ''; edit = { username: '', role: 'editor', password: '', disabled: false } }}>+ Add user</button></div>
+    <div><button class="btn primary" onclick={() => { error = ''; edit = { username: '', role: 'editor', password: '', disabled: false } }}><Plus size={16} /> Add user</button></div>
     <div class="card flush table-wrap">
       <table class="list">
         <thead><tr><th>User</th><th>Role</th><th class="hide-sm">2FA</th><th class="hide-sm">Last login</th></tr></thead>
@@ -72,7 +73,7 @@
 {:else}
   <div class="stack">
     <p class="muted">Use a key with <code>Authorization: Bearer &lt;key&gt;</code> against <code>/api/…</code>, e.g. <code>curl -H "Authorization: Bearer chk_…" https://panel/api/sites</code>. A key never has more rights than its owner.</p>
-    <div><button class="btn primary" onclick={() => { error = ''; newKey = { name: '', role: 'viewer', valid_days: 0 } }}>+ Create key</button></div>
+    <div><button class="btn primary" onclick={() => { error = ''; newKey = { name: '', role: 'viewer', valid_days: 0 } }}><KeyRound size={16} /> Create key</button></div>
     {#if keys.length}
       <div class="card flush table-wrap">
         <table class="list">
