@@ -250,6 +250,8 @@ type Settings struct {
 
 	PanelDomain string `json:"panel_domain"` // optional: serve the panel itself through Caddy
 
+	DefaultDomain string `json:"default_domain"` // pre-selected base domain for new sites (UI only)
+
 	DryRun bool `json:"dry_run"` // global "always dry-run" safety toggle
 
 	Backup                BackupSettings `json:"backup"`

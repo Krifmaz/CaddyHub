@@ -3,6 +3,7 @@
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, refreshStatus, loadMeta, can } from '../lib/state.svelte.js'
   import ListInput from '../lib/ListInput.svelte'
+  import { knownDomains } from '../lib/domains.js'
 
   let s = $state(null)
   let tab = $state('certs')
@@ -11,6 +12,7 @@
   let error = $state('')
   let busy = $state(false)
   let alertDays = $state('')
+  let domainList = $state([])
 
   onMount(async () => {
     loadMeta().catch(() => {})
@@ -21,6 +23,8 @@
       s.trusted_proxies.presets ||= []
       s.trusted_proxies.custom ||= []
       alertDays = (s.cert_alert_days || []).join(', ')
+      const [doms, sites] = await Promise.all([api.get('/domains').catch(() => []), api.get('/sites').catch(() => [])])
+      domainList = knownDomains(doms, sites, s.default_domain)
     } catch (e) { toastErr(e) }
   })
 
@@ -59,13 +63,26 @@
 
 {#if s}
   <div class="tabs">
-    {#each [['certs', 'Certificates'], ['network', 'Proxies & DNS'], ['logs', 'Logs & metrics'], ['advanced', 'Advanced']] as [k, l]}
+    {#each [['certs', 'Domains & certificates'], ['network', 'Proxies & DNS'], ['logs', 'Logs & metrics'], ['advanced', 'Advanced']] as [k, l]}
       <button class:active={tab === k} onclick={() => (tab = k)}>{l}</button>
     {/each}
   </div>
 
   <fieldset class="stack" disabled={ro}>
     {#if tab === 'certs'}
+      <div class="card stack">
+        <label class="field"><span>Default domain for new sites</span>
+          {#if domainList.length}
+            <select bind:value={s.default_domain}>
+              <option value="">First one found</option>
+              {#each domainList as d}<option value={d}>{d}</option>{/each}
+            </select>
+          {:else}
+            <input type="text" bind:value={s.default_domain} placeholder="example.com" />
+          {/if}
+          <span class="hint">New sites start as <code>name.{s.default_domain || domainList[0] || 'example.com'}</code>; you only type the name. The list comes from Domains &amp; DNS and the domains your sites already use.</span>
+        </label>
+      </div>
       <div class="card stack">
         <div class="grid2">
           <label class="field"><span>Email for certificate notices</span><input type="email" bind:value={s.acme_email} placeholder="you@example.com" /></label>

@@ -12,6 +12,8 @@
   import KVInput from '../lib/KVInput.svelte'
   import Switch from '../lib/Switch.svelte'
   import Avatar from '../lib/Avatar.svelte'
+  import HostInput from '../lib/HostInput.svelte'
+  import { knownDomains } from '../lib/domains.js'
   import { templates } from '../lib/templates.js'
 
   let { id } = $props()
@@ -31,6 +33,9 @@
   let error = $state('')
   let rawCheck = $state(null)
   let accessLog = $state('default')
+  let domainList = $state([])
+  let defaultDomain = $state('')
+  let hostKey = $state(0)
 
   const feat = (fid) => (app.meta?.features || []).find((f) => f.id === fid)
   const available = (fid) => feat(fid)?.available !== false
@@ -62,7 +67,14 @@
     loadMeta().catch(() => {})
     api.get('/snippets').then((x) => (snippets = x)).catch(() => {})
     try {
-      const s = isNew ? blank() : await api.get('/sites/' + id)
+      const [s, doms, all, st] = await Promise.all([
+        isNew ? blank() : api.get('/sites/' + id),
+        api.get('/domains').catch(() => []),
+        api.get('/sites').catch(() => []),
+        api.get('/settings').catch(() => ({})),
+      ])
+      domainList = knownDomains(doms, all, st.default_domain)
+      defaultDomain = st.default_domain || domainList[0] || ''
       site = ensure(s)
       tagText = (site.tags || []).join(', ')
       accessLog = site.config.access_log == null ? 'default' : site.config.access_log ? 'on' : 'off'
@@ -72,10 +84,12 @@
   function applyTemplate(t) {
     if (!t) return
     const s = ensure(clone({ ...blank(), ...t.site, config: { ...blank().config, ...t.site.config } }))
-    s.hosts = site.hosts.some((h) => h.trim()) ? site.hosts : ['']
+    const typed = site.hosts.some((h) => h.trim() && !domainList.includes(h.trim()))
+    s.hosts = typed ? site.hosts : [defaultDomain ? `${t.id}.${defaultDomain}` : '']
     s.name = site.name || t.name
     site = s
-    toast(`Filled in ${t.name} defaults. Set the hostname and upstream address.`)
+    hostKey++
+    toast(`Filled in ${t.name} defaults. Check the address and the upstream (container name:port).`)
   }
 
   // Strip the editor-only defaults for handler types the site doesn't use.
@@ -194,7 +208,7 @@
       </div>
       <div class="field">
         <span>Hostnames</span>
-        <ListInput bind:items={site.hosts} placeholder="app.example.com" addLabel="Add hostname" />
+        {#key hostKey}<HostInput bind:hosts={site.hosts} domains={domainList} {defaultDomain} />{/key}
         <span class="hint">The address people type in their browser. HTTPS certificates are obtained automatically.</span>
       </div>
       <div class="grid2">
@@ -218,8 +232,8 @@
       {#if site.kind === 'proxy'}
         <div class="field">
           <span>Upstream address</span>
-          <ListInput bind:items={site.config.proxy.upstreams} placeholder="localhost:8080 or https://10.0.0.5:8443" addLabel="Add upstream" />
-          <span class="hint">Where your app listens. Add more than one to load-balance.</span>
+          <ListInput bind:items={site.config.proxy.upstreams} placeholder="jellyfin:8096" addLabel="Add upstream" />
+          <span class="hint">Where the app listens, as <code>address:port</code>. For a Docker container on a network shared with Caddy, use its container name (<code>jellyfin:8096</code>). For anything else, use the machine's IP (<code>10.0.1.5:32400</code>). Add more than one to load-balance.</span>
         </div>
         <div class="checks">
           <label class="check"><input type="checkbox" bind:checked={site.config.proxy.websocket} /> WebSockets / streaming</label>
