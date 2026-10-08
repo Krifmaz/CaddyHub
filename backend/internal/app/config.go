@@ -101,7 +101,7 @@ func LoadConfig() Config {
 
 		CaddyBin:      env("CADDYHUB_CADDY_BIN", "/caddy-bin/caddy"),
 		CaddyAdmin:    env("CADDYHUB_CADDY_ADMIN", "caddy-admin:2019"),
-		CaddyfilePath: env("CADDYHUB_CADDYFILE", "/etc/caddy/Caddyfile"),
+		CaddyfilePath: env("CADDYHUB_CADDYFILE", "/etc/caddyhub/Caddyfile"),
 		SecretsDir:    env("CADDYHUB_SECRETS_DIR", "/run/caddyhub/secrets"),
 		LogDir:        env("CADDYHUB_LOG_DIR", "/var/log/caddy"),
 		CaddyDataDir:  env("CADDYHUB_CADDY_DATA", "/caddy-data"),

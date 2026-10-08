@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1" # weekly: catch breakage from new Caddy releases early
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go tests (Caddy ${{ matrix.caddy }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        caddy: [stable, previous, beta]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Download Caddy (${{ matrix.caddy }})
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WHICH: ${{ matrix.caddy }}
+        run: |
+          set -euo pipefail
+          tags=$(gh api repos/caddyserver/caddy/releases --paginate -q '.[] | select(.draft | not) | .tag_name')
+          stable=$(echo "$tags" | grep -v -- - | sort -V | tail -1)
+          case "$WHICH" in
+            stable) v=$stable ;;
+            previous) minor=$(echo "$stable" | cut -d. -f1,2); v=$(echo "$tags" | grep -v -- - | grep -v "^$minor\." | sort -V | tail -1) ;;
+            beta) v=$(echo "$tags" | sort -V | tail -1) ;;
+          esac
+          echo "Testing against Caddy $v"
+          mkdir -p "$RUNNER_TEMP/caddy"
+          curl -fsSL "https://github.com/caddyserver/caddy/releases/download/$v/caddy_${v#v}_linux_amd64.tar.gz" | tar -xz -C "$RUNNER_TEMP/caddy" caddy
+          echo "CADDY_BIN=$RUNNER_TEMP/caddy/caddy" >> "$GITHUB_ENV"
+      - name: Vet
+        working-directory: backend
+        run: go vet ./...
+      - name: Test
+        working-directory: backend
+        run: go test -race ./...
+
+  frontend:
+    name: Web UI build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build panel
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+      - name: Build caddy
+        uses: docker/build-push-action@v6
+        with:
+          context: ./caddy
+          push: false

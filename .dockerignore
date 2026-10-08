@@ -1,0 +1,5 @@
+**/node_modules
+backend/internal/web/ui/dist
+.git
+.env
+data

@@ -1,0 +1,77 @@
+# CaddyHub: a web UI for Caddy.
+#   1. cp .env.example .env   (optional: set CADDYHUB_SECRET_KEY etc.)
+#   2. docker compose up -d --build
+#   3. open http://<this-host>:8080 and create your admin account
+name: caddyhub
+
+services:
+  caddy:
+    build:
+      context: ./caddy
+      args:
+        CADDY_VERSION: ${CADDY_VERSION:-2}
+        CADDY_PLUGINS: ${CADDY_PLUGINS:-github.com/caddy-dns/cloudflare github.com/mholt/caddy-ratelimit}
+    image: caddyhub-caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CADDY_ADMIN_LISTEN: caddy-admin:2019
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - caddyfile:/etc/caddyhub
+      - caddy-bin:/caddy-bin
+      - secrets:/run/caddyhub/secrets
+      - logs:/var/log/caddy
+    networks:
+      default: {}
+      internal:
+        aliases: [caddy-admin]
+
+  panel:
+    build:
+      context: .
+    image: caddyhub:latest
+    restart: unless-stopped
+    depends_on: [caddy]
+    ports:
+      - "${CADDYHUB_PORT:-8080}:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      CADDYHUB_CADDY_ADMIN: caddy-admin:2019
+      CADDYHUB_CADDY_BIN: /caddy-bin/caddy
+      CADDYHUB_CADDYFILE: /etc/caddyhub/Caddyfile
+      CADDYHUB_SECRETS_DIR: /run/caddyhub/secrets
+      CADDYHUB_LOG_DIR: /var/log/caddy
+      CADDYHUB_CADDY_DATA: /caddy-data
+      CADDYHUB_PROBE: caddy:80
+      CADDYHUB_PANEL_UPSTREAM: panel:8080
+    volumes:
+      - panel-data:/data
+      - caddyfile:/etc/caddyhub
+      - caddy-bin:/caddy-bin:ro
+      - secrets:/run/caddyhub/secrets
+      - logs:/var/log/caddy:ro
+      - caddy-data:/caddy-data:ro
+    networks:
+      - default
+      - internal
+
+networks:
+  # The admin API is only reachable here; it is never published on the host.
+  internal:
+    internal: true
+
+volumes:
+  caddy-data:
+  caddy-config:
+  caddyfile:
+  caddy-bin:
+  secrets:
+  logs:
+  panel-data:
