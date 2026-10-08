@@ -27,6 +27,7 @@ type DomainSuggestion struct {
 	Name          string `json:"name"`
 	Challenge     string `json:"challenge"`
 	CredentialKey string `json:"credential_key,omitempty"`
+	Wildcard      bool   `json:"wildcard,omitempty"`
 }
 
 // Result is the import outcome.
@@ -41,6 +42,7 @@ type Result struct {
 	Credentials []Credential       `json:"credentials"`
 	Domains     []DomainSuggestion `json:"domains"`
 	Report      []ReportLine       `json:"report"`
+	Warnings    []string           `json:"warnings,omitempty"`
 }
 
 // ReportLine explains what happened to each block.

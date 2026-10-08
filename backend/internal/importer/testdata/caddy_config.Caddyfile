@@ -1,0 +1,70 @@
+{
+	email me@example.com
+	acme_dns cloudflare {env.CF_API_TOKEN}
+}
+
+(sec) {
+	header {
+		X-Frame-Options DENY
+		-Server
+	}
+}
+
+jellyfin.example.com {
+	import sec
+	encode zstd gzip
+	reverse_proxy jellyfin:8096 {
+		lb_policy round_robin
+		health_uri /health
+	}
+}
+
+vault.example.com, pw.example.com {
+	basic_auth {
+		bob $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IyWJPDYoEy
+	}
+	request_body {
+		max_size 10MB
+	}
+	handle_path /api/* {
+		reverse_proxy api:9000
+	}
+	reverse_proxy https://10.0.0.5:8443 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}
+
+docs.example.com {
+	root * /srv/docs
+	try_files {path} /index.html
+	file_server browse
+}
+
+old.example.com {
+	redir https://new.example.com{uri} permanent
+}
+
+status.example.com {
+	respond "OK" 200
+}
+
+*.lan.example.com {
+	tls {
+		dns cloudflare literal-secret-token
+	}
+	@a host a.lan.example.com
+	handle @a {
+		reverse_proxy 10.0.0.20:80
+	}
+}
+
+:8081 {
+	respond "port only"
+}
+
+weird.example.com {
+	templates
+	php_fastcgi unix//run/php.sock
+}

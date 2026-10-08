@@ -20,6 +20,16 @@ chown "$PANEL_UID" "$(dirname "$CADDYFILE")" /run/caddyhub/secrets
 chmod 0700 /run/caddyhub/secrets
 chmod 0755 /var/log/caddy
 
+# Before Caddy starts (and overwrites autosave.json), keep one copy of the
+# config a previous Caddy left behind so CaddyHub can offer to import it.
+CFG_DIR="${XDG_CONFIG_HOME:-/config}/caddy"
+mkdir -p "$CFG_DIR"
+chmod 0755 "$CFG_DIR"
+if [ -s "$CFG_DIR/autosave.json" ] && [ ! -e "$CFG_DIR/autosave.pre-caddyhub.json" ] 	&& ! grep -q "$ADMIN" "$CFG_DIR/autosave.json"; then
+	cp "$CFG_DIR/autosave.json" "$CFG_DIR/autosave.pre-caddyhub.json"
+	chmod 0644 "$CFG_DIR/autosave.pre-caddyhub.json"
+fi
+
 # First start: a minimal config that only enables the admin API on the
 # internal network, so the panel can take over.
 if [ ! -s "$CADDYFILE" ]; then

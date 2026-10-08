@@ -52,7 +52,7 @@ Other pages:
 
 - **Domains & DNS**: DNS-01 validation per domain (each domain can use a different provider/account) and optional wildcard certificates.
 - **Snippets & raw**: reusable snippets you attach to sites, plus verbatim top-level blocks.
-- **Import**: paste or upload a Caddyfile to turn it into sites.
+- **Import**: on first start, CaddyHub looks for your existing config and offers it with no pasting needed. It checks, in order: the running Caddy (admin API), the `autosave.json` a previous Caddy left in the shared config volume (the Caddy container backs it up once before its first start), and an old Caddyfile mounted at `/import/Caddyfile`. You can also paste a Caddyfile or Caddy JSON. Before you import, CaddyHub regenerates the config, has Caddy check it, and compares every host ("4 sites imported, 0 differences"). Anything it can't map is kept, disabled, for you to review. DNS tokens written in plain text are moved into encrypted storage.
 - **Settings**: certificate authority (Let's Encrypt, ZeroSSL, Google, staging, custom ACME), propagation resolvers, trusted proxies/CDNs, logs and metrics, extra global options, and a dry-run safety mode.
 - **Users & API keys**: admin / editor / viewer roles, TOTP two-factor, and bearer-token API keys.
 - **Notifications**: ntfy, Gotify, Discord, Slack, email or webhook when an apply fails.

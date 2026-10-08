@@ -49,6 +49,7 @@ type Options struct {
 	TrustXFF  bool   // trust X-Forwarded-For (panel behind Caddy)
 	SecureCk  bool   // set Secure on cookies
 	DevNoAuth bool
+	Imports   ImportPaths // existing configs offered for import
 }
 
 // Server handles HTTP.
@@ -172,7 +173,9 @@ func (s *Server) guard(role string, h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func safeMethod(m string) bool { return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions }
+func safeMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
+}
 
 func (s *Server) clientIP(r *http.Request) string {
 	if s.TrustXFF {

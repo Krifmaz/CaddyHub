@@ -60,7 +60,7 @@ type Discovered struct {
 	ID          int64           `json:"id"`
 	ContainerID string          `json:"container_id"`
 	Name        string          `json:"name"`
-	Data        json.RawMessage `json:"data"` // suggestion (site draft + labels)
+	Data        json.RawMessage `json:"data"`   // suggestion (site draft + labels)
 	Status      string          `json:"status"` // pending, approved, dismissed, gone
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`

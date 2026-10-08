@@ -43,6 +43,7 @@ services:
       CADDYHUB_SECRETS_DIR: /run/caddyhub/secrets
       CADDYHUB_LOG_DIR: /var/log/caddy
       CADDYHUB_CADDY_DATA: /caddy-data
+      CADDYHUB_CADDY_CONFIG: /caddy-config
       CADDYHUB_PROBE: caddy:80
       CADDYHUB_PANEL_UPSTREAM: caddyhub:8080
     volumes:
@@ -52,6 +53,8 @@ services:
       - secrets:/run/caddyhub/secrets
       - logs:/var/log/caddy:ro
       - caddy-data:/caddy-data:ro
+      - caddy-config:/caddy-config:ro      # lets CaddyHub import your previous config
+      # - ./Caddyfile:/import/Caddyfile:ro  # or mount an old Caddyfile to import
     networks:
       - default
       - internal

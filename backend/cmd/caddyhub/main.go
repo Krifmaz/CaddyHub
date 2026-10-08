@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -127,6 +128,11 @@ func run(cfg app.Config, log *slog.Logger) error {
 		TrustXFF:  cfg.TrustProxyHeaders,
 		SecureCk:  strings.HasPrefix(cfg.BaseURL, "https://"),
 		DevNoAuth: cfg.DevNoAuth,
+		Imports: server.ImportPaths{
+			AutosaveBackup: filepath.Join(cfg.CaddyConfigDir, "caddy", "autosave.pre-caddyhub.json"),
+			Autosave:       filepath.Join(cfg.CaddyConfigDir, "caddy", "autosave.json"),
+			Caddyfile:      cfg.ImportCaddyfile,
+		},
 	})
 	if cfg.DevNoAuth {
 		log.Warn("CADDYHUB_DEV_NO_AUTH is set: the panel has NO authentication. Never use this in production.")

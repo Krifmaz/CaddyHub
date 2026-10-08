@@ -12,8 +12,6 @@ import (
 	"github.com/Krifmaz/CaddyHub/internal/auth"
 	"github.com/Krifmaz/CaddyHub/internal/diff"
 	"github.com/Krifmaz/CaddyHub/internal/generator"
-	"github.com/Krifmaz/CaddyHub/internal/importer"
-	"github.com/Krifmaz/CaddyHub/internal/model"
 	"github.com/Krifmaz/CaddyHub/internal/notify"
 	"github.com/Krifmaz/CaddyHub/internal/registry"
 	"github.com/Krifmaz/CaddyHub/internal/store"
@@ -79,6 +77,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/versions/{id}", s.guard(V, s.getVersion))
 	m.HandleFunc("POST /api/versions/{id}/rollback", s.guard(E, s.rollbackVersion))
 
+	m.HandleFunc("GET /api/import/sources", s.guard(A, s.importSources))
 	m.HandleFunc("POST /api/import/preview", s.guard(A, s.importPreview))
 	m.HandleFunc("POST /api/import/commit", s.guard(A, s.importCommit))
 
@@ -342,155 +341,6 @@ func (s *Server) rollbackVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	s.audit(r, "config.rollback", fmt.Sprint(id), res.Status+": "+res.Message)
 	writeJSON(w, http.StatusOK, res)
-}
-
-// ---------------------------------------------------------------- import
-
-func (s *Server) importPreview(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Caddyfile string `json:"caddyfile"`
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	res, err := importer.Import(req.Caddyfile)
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	for i := range res.Credentials { // never echo secrets back
-		for k, v := range res.Credentials[i].Fields {
-			if v != "" && !strings.HasPrefix(v, "env:") && !strings.HasPrefix(v, "file:") {
-				res.Credentials[i].Fields[k] = "••••••"
-			}
-		}
-	}
-	writeJSON(w, http.StatusOK, res)
-}
-
-// importCommit stores an imported Caddyfile. With replace, existing sites,
-// snippets and raw blocks are removed first (domains/credentials are kept).
-func (s *Server) importCommit(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Caddyfile string `json:"caddyfile"`
-		Replace   bool   `json:"replace"`
-		Settings  bool   `json:"settings"` // also take email/CA/global options
-	}
-	if !readJSON(w, r, &req) {
-		return
-	}
-	res, err := importer.Import(req.Caddyfile)
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if req.Replace {
-		old, _ := s.Store.Sites()
-		for _, st := range old {
-			s.Store.DeleteSite(st.ID)
-		}
-		sn, _ := s.Store.Snippets()
-		for _, x := range sn {
-			s.Store.DeleteSnippet(x.ID)
-		}
-		rb, _ := s.Store.RawBlocks()
-		for _, x := range rb {
-			s.Store.DeleteRawBlock(x.ID)
-		}
-	}
-	existingHosts := map[string]bool{}
-	if cur, err := s.Store.Sites(); err == nil {
-		for _, st := range cur {
-			for _, h := range st.Hosts {
-				existingHosts[h] = true
-			}
-		}
-	}
-	var skipped []string
-	nSites := 0
-	for _, st := range res.Sites {
-		dup := false
-		for _, h := range st.Hosts {
-			if existingHosts[h] {
-				dup = true
-			}
-		}
-		if dup {
-			skipped = append(skipped, strings.Join(st.Hosts, ", "))
-			continue
-		}
-		st.ID, st.Position = 0, 0
-		if _, err := s.Store.CreateSite(st); err != nil {
-			storeErr(w, err)
-			return
-		}
-		nSites++
-	}
-	existingSn := map[string]bool{}
-	if sn, err := s.Store.Snippets(); err == nil {
-		for _, x := range sn {
-			existingSn[x.Name] = true
-		}
-	}
-	for _, sn := range res.Snippets {
-		if existingSn[sn.Name] {
-			skipped = append(skipped, "snippet "+sn.Name)
-			continue
-		}
-		sn.ID = 0
-		s.Store.SaveSnippet(sn)
-	}
-	for _, b := range res.RawBlocks {
-		b.ID = 0
-		s.Store.SaveRawBlock(b)
-	}
-
-	// DNS credentials and domains found in tls/acme_dns directives.
-	credIDs := map[string]int64{}
-	for _, c := range res.Credentials {
-		prov, ok := registry.DNSProviderByID(c.Provider)
-		name := c.Provider + " (imported)"
-		if ok {
-			name = prov.Name + " (imported)"
-		}
-		saved, err := s.Store.SaveCredential(model.DNSCredential{Name: name, Provider: c.Provider, Fields: c.Fields})
-		if err == nil {
-			credIDs[c.Key] = saved.ID
-		}
-	}
-	existingDom := map[string]bool{}
-	if ds, err := s.Store.Domains(); err == nil {
-		for _, d := range ds {
-			existingDom[d.Name] = true
-		}
-	}
-	for _, d := range res.Domains {
-		if existingDom[d.Name] {
-			continue
-		}
-		dom := model.Domain{Name: d.Name, Challenge: d.Challenge}
-		if id, ok := credIDs[d.CredentialKey]; ok {
-			dom.CredentialID = &id
-		} else if dom.Challenge == model.ChallengeDNS {
-			dom.Challenge = model.ChallengeHTTP
-		}
-		s.Store.SaveDomain(dom)
-	}
-	if req.Settings {
-		s.Store.UpdateSettings(func(st *model.Settings) {
-			if res.Email != "" {
-				st.ACMEEmail = res.Email
-			}
-			if res.ACMECA != "" {
-				st.ACMECA, st.ACMECAURL = res.ACMECA, res.ACMECAURL
-			}
-			if res.RawGlobal != "" {
-				st.RawGlobal = res.RawGlobal
-			}
-		})
-	}
-	s.audit(r, "config.import", fmt.Sprintf("%d sites", nSites), "")
-	writeJSON(w, http.StatusOK, map[string]any{"sites": nSites, "snippets": len(res.Snippets), "raw_blocks": len(res.RawBlocks), "skipped": skipped, "report": res.Report})
 }
 
 // ---------------------------------------------------------------- users & keys

@@ -33,7 +33,7 @@
   </div>
   <div class="steps row">
     <span class:on={step === 1}>1. Certificates</span><span class="muted">→</span>
-    <span class:on={step === 2}>2. Existing Caddyfile</span><span class="muted">→</span>
+    <span class:on={step === 2}>2. Existing config</span><span class="muted">→</span>
     <span class:on={step === 3}>3. Done</span>
   </div>
 
@@ -56,8 +56,8 @@
     </div>
   {:else if step === 2}
     <div class="card stack">
-      <h2>Already have a Caddyfile?</h2>
-      <p class="muted">Import it so you don't start from scratch. Anything CaddyHub can't turn into forms is kept exactly as written.</p>
+      <h2>Bring in your existing config</h2>
+      <p class="muted">CaddyHub looks for the config your Caddy is already running (or ran before). You can also paste a Caddyfile. Anything it can't turn into forms is kept for you to review.</p>
     </div>
     {#if imported}
       <div class="alert ok">Imported {imported.sites} site(s). You'll review the result before anything goes live.</div>

@@ -198,7 +198,9 @@ func (s *Store) DeleteUserSessions(uid int64, except string) {
 }
 
 // PruneSessions deletes expired sessions.
-func (s *Store) PruneSessions() { s.DB.Exec(`DELETE FROM sessions WHERE expires_at < ?`, time.Now().UTC()) }
+func (s *Store) PruneSessions() {
+	s.DB.Exec(`DELETE FROM sessions WHERE expires_at < ?`, time.Now().UTC())
+}
 
 // ---------------------------------------------------------------- API keys
 

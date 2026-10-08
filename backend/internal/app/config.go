@@ -19,23 +19,25 @@ type Config struct {
 	SecretKey     string
 	SecretKeyFile string
 
-	CaddyBin       string   // binary used for adapt/validate (shared from the caddy container)
-	CaddyAdmin     string   // address the panel uses to reach the admin API
-	AdminListen    string   // address Caddy's admin endpoint binds to (written into the config)
-	AdminOrigins   []string // allowed admin origins
-	CaddyfilePath  string   // persisted Caddyfile Caddy starts from
-	SecretsDir     string   // shared secrets directory (same path in both containers)
-	LogDir         string   // Caddy log directory (same path in both containers)
-	CaddyDataDir   string   // Caddy's data dir mounted into the panel (certificates)
-	ProbeAddrs     []string // Caddy listeners to probe after apply
-	PanelUpstream  string   // how Caddy reaches the panel (when proxying the panel)
-	CaddyHost      string   // host Caddy is reachable at for "test route" (e.g. caddy)
+	CaddyBin        string   // binary used for adapt/validate (shared from the caddy container)
+	CaddyAdmin      string   // address the panel uses to reach the admin API
+	AdminListen     string   // address Caddy's admin endpoint binds to (written into the config)
+	AdminOrigins    []string // allowed admin origins
+	CaddyfilePath   string   // persisted Caddyfile Caddy starts from
+	SecretsDir      string   // shared secrets directory (same path in both containers)
+	LogDir          string   // Caddy log directory (same path in both containers)
+	CaddyDataDir    string   // Caddy's data dir mounted into the panel (certificates)
+	CaddyConfigDir  string   // Caddy's config dir mounted read-only (autosave.json, for import)
+	ImportCaddyfile string   // optional old Caddyfile mounted for import
+	ProbeAddrs      []string // Caddy listeners to probe after apply
+	PanelUpstream   string   // how Caddy reaches the panel (when proxying the panel)
+	CaddyHost       string   // host Caddy is reachable at for "test route" (e.g. caddy)
 
-	BaseURL            string // public URL of the panel (OIDC redirects, cookies)
-	TrustProxyHeaders  bool   // trust X-Forwarded-For from Caddy for client IPs
-	SetupToken         string // optional fixed setup token
-	InitialAdminUser   string
-	InitialAdminPass   string
+	BaseURL           string // public URL of the panel (OIDC redirects, cookies)
+	TrustProxyHeaders bool   // trust X-Forwarded-For from Caddy for client IPs
+	SetupToken        string // optional fixed setup token
+	InitialAdminUser  string
+	InitialAdminPass  string
 
 	DockerHost        string // read-only socket proxy for discovery
 	DockerManagerHost string // socket proxy allowing builds/containers (opt-in)
@@ -99,15 +101,17 @@ func LoadConfig() Config {
 		SecretKey:     os.Getenv("CADDYHUB_SECRET_KEY"),
 		SecretKeyFile: os.Getenv("CADDYHUB_SECRET_KEY_FILE"),
 
-		CaddyBin:      env("CADDYHUB_CADDY_BIN", "/caddy-bin/caddy"),
-		CaddyAdmin:    env("CADDYHUB_CADDY_ADMIN", "caddy-admin:2019"),
-		CaddyfilePath: env("CADDYHUB_CADDYFILE", "/etc/caddyhub/Caddyfile"),
-		SecretsDir:    env("CADDYHUB_SECRETS_DIR", "/run/caddyhub/secrets"),
-		LogDir:        env("CADDYHUB_LOG_DIR", "/var/log/caddy"),
-		CaddyDataDir:  env("CADDYHUB_CADDY_DATA", "/caddy-data"),
-		ProbeAddrs:    envList("CADDYHUB_PROBE", "caddy:80"),
-		PanelUpstream: env("CADDYHUB_PANEL_UPSTREAM", "panel:8080"),
-		CaddyHost:     env("CADDYHUB_CADDY_HOST", "caddy"),
+		CaddyBin:        env("CADDYHUB_CADDY_BIN", "/caddy-bin/caddy"),
+		CaddyAdmin:      env("CADDYHUB_CADDY_ADMIN", "caddy-admin:2019"),
+		CaddyfilePath:   env("CADDYHUB_CADDYFILE", "/etc/caddyhub/Caddyfile"),
+		SecretsDir:      env("CADDYHUB_SECRETS_DIR", "/run/caddyhub/secrets"),
+		LogDir:          env("CADDYHUB_LOG_DIR", "/var/log/caddy"),
+		CaddyDataDir:    env("CADDYHUB_CADDY_DATA", "/caddy-data"),
+		CaddyConfigDir:  env("CADDYHUB_CADDY_CONFIG", "/caddy-config"),
+		ImportCaddyfile: env("CADDYHUB_IMPORT_CADDYFILE", "/import/Caddyfile"),
+		ProbeAddrs:      envList("CADDYHUB_PROBE", "caddy:80"),
+		PanelUpstream:   env("CADDYHUB_PANEL_UPSTREAM", "panel:8080"),
+		CaddyHost:       env("CADDYHUB_CADDY_HOST", "caddy"),
 
 		BaseURL:           strings.TrimRight(os.Getenv("CADDYHUB_BASE_URL"), "/"),
 		TrustProxyHeaders: envBool("CADDYHUB_TRUST_PROXY_HEADERS", false),

@@ -1,0 +1,501 @@
+{
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [
+						":443"
+					],
+					"routes": [
+						{
+							"match": [
+								{
+									"host": [
+										"jellyfin.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "headers",
+													"response": {
+														"deferred": true,
+														"delete": [
+															"Server"
+														],
+														"set": {
+															"X-Frame-Options": [
+																"DENY"
+															]
+														}
+													}
+												},
+												{
+													"encodings": {
+														"gzip": {},
+														"zstd": {}
+													},
+													"handler": "encode",
+													"prefer": [
+														"zstd",
+														"gzip"
+													]
+												},
+												{
+													"handler": "reverse_proxy",
+													"health_checks": {
+														"active": {
+															"uri": "/health"
+														}
+													},
+													"load_balancing": {
+														"selection_policy": {
+															"policy": "round_robin"
+														}
+													},
+													"upstreams": [
+														{
+															"dial": "jellyfin:8096"
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"status.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"body": "OK",
+													"handler": "static_response",
+													"status_code": 200
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"vault.example.com",
+										"pw.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "request_body",
+													"max_size": 10000000
+												},
+												{
+													"handler": "authentication",
+													"providers": {
+														"http_basic": {
+															"accounts": [
+																{
+																	"password": "$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IyWJPDYoEy",
+																	"username": "bob"
+																}
+															],
+															"hash": {
+																"algorithm": "bcrypt"
+															},
+															"hash_cache": {}
+														}
+													}
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "subroute",
+													"routes": [
+														{
+															"handle": [
+																{
+																	"handler": "rewrite",
+																	"strip_path_prefix": "/api"
+																}
+															]
+														},
+														{
+															"handle": [
+																{
+																	"handler": "reverse_proxy",
+																	"upstreams": [
+																		{
+																			"dial": "api:9000"
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"path": [
+														"/api/*"
+													]
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "reverse_proxy",
+													"transport": {
+														"protocol": "http",
+														"tls": {
+															"insecure_skip_verify": true
+														}
+													},
+													"upstreams": [
+														{
+															"dial": "10.0.0.5:8443"
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"weird.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "templates"
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "static_response",
+													"headers": {
+														"Location": [
+															"{http.request.orig_uri.path}/{http.request.orig_uri.prefixed_query}"
+														]
+													},
+													"status_code": 308
+												}
+											],
+											"match": [
+												{
+													"file": {
+														"try_files": [
+															"{http.request.uri.path}/index.php"
+														]
+													},
+													"not": [
+														{
+															"path": [
+																"*/"
+															]
+														}
+													]
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "rewrite",
+													"uri": "{http.matchers.file.relative}"
+												}
+											],
+											"match": [
+												{
+													"file": {
+														"split_path": [
+															".php"
+														],
+														"try_files": [
+															"{http.request.uri.path}",
+															"{http.request.uri.path}/index.php",
+															"index.php"
+														],
+														"try_policy": "first_exist_fallback"
+													}
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "reverse_proxy",
+													"transport": {
+														"protocol": "fastcgi",
+														"split_path": [
+															".php"
+														]
+													},
+													"upstreams": [
+														{
+															"dial": "unix//run/php.sock"
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"path": [
+														"*.php"
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"docs.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "vars",
+													"root": "/srv/docs"
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"handler": "rewrite",
+													"uri": "{http.matchers.file.relative}"
+												}
+											],
+											"match": [
+												{
+													"file": {
+														"try_files": [
+															"{http.request.uri.path}",
+															"/index.html"
+														]
+													}
+												}
+											]
+										},
+										{
+											"handle": [
+												{
+													"browse": {},
+													"handler": "file_server",
+													"hide": [
+														".\\Caddyfile"
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"old.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "static_response",
+													"headers": {
+														"Location": [
+															"https://new.example.com{http.request.uri}"
+														]
+													},
+													"status_code": 301
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						},
+						{
+							"match": [
+								{
+									"host": [
+										"*.lan.example.com"
+									]
+								}
+							],
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "subroute",
+													"routes": [
+														{
+															"handle": [
+																{
+																	"handler": "reverse_proxy",
+																	"upstreams": [
+																		{
+																			"dial": "10.0.0.20:80"
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"host": [
+														"a.lan.example.com"
+													]
+												}
+											]
+										}
+									]
+								}
+							],
+							"terminal": true
+						}
+					]
+				},
+				"srv1": {
+					"listen": [
+						":8081"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"body": "port only",
+									"handler": "static_response"
+								}
+							]
+						}
+					]
+				}
+			}
+		},
+		"tls": {
+			"automation": {
+				"policies": [
+					{
+						"subjects": [
+							"*.lan.example.com"
+						],
+						"issuers": [
+							{
+								"challenges": {
+									"dns": {
+										"provider": {
+											"api_token": "literal-secret-token",
+											"name": "cloudflare"
+										}
+									}
+								},
+								"email": "me@example.com",
+								"module": "acme"
+							}
+						]
+					},
+					{
+						"issuers": [
+							{
+								"challenges": {
+									"dns": {
+										"provider": {
+											"api_token": "{env.CF_API_TOKEN}",
+											"name": "cloudflare"
+										}
+									}
+								},
+								"email": "me@example.com",
+								"module": "acme"
+							},
+							{
+								"ca": "https://acme.zerossl.com/v2/DV90",
+								"challenges": {
+									"dns": {
+										"provider": {
+											"api_token": "{env.CF_API_TOKEN}",
+											"name": "cloudflare"
+										}
+									}
+								},
+								"email": "me@example.com",
+								"module": "acme"
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}
