@@ -24,10 +24,12 @@
   async function load() {
     try { sites = await api.get('/sites') } catch (e) { toastErr(e); sites = [] }
   }
+  // Real connection test of every upstream (Caddy's own counters stay at
+  // zero unless health checks are configured, so they can't say "healthy").
   async function loadUpstreams() {
     try {
       const m = {}
-      for (const u of (await api.get('/upstreams')) || []) m[u.address] = u
+      for (const u of (await api.get('/upstreams/reach')) || []) m[u.upstream] = u
       upstreams = m
     } catch { upstreams = {} }
   }
@@ -54,12 +56,15 @@
   }
   function health(s) {
     if (s.kind !== 'proxy' || !s.enabled) return null
-    const us = (s.config.proxy?.upstreams || []).map((u) => upstreams[u.replace(/^https?:\/\//, '')] || upstreams[u]).filter(Boolean)
+    const us = (s.config.proxy?.upstreams || []).map((u) => upstreams[u.trim()]).filter(Boolean)
     if (!us.length) return null
-    return us.every((u) => u.fails === 0) ? 'ok' : 'err'
+    return us.every((u) => u.ok) ? 'ok' : 'err'
+  }
+  function reachError(s) {
+    return (s.config.proxy?.upstreams || []).map((u) => upstreams[u.trim()]).find((u) => u && !u.ok)?.error
   }
   const upTotal = $derived(Object.keys(upstreams).length)
-  const upHealthy = $derived(Object.values(upstreams).filter((u) => u.fails === 0).length)
+  const upHealthy = $derived(Object.values(upstreams).filter((u) => u.ok).length)
   function hostURL(s) {
     const h = s.hosts[0] || ''
     if (h.startsWith('*.')) return null
@@ -110,7 +115,7 @@
   </div>
   <div class="stat">
     <span class="s-ic"><Activity size={18} /></span>
-    <div><div class="s-label">Upstreams healthy</div><div class="s-val">{upTotal ? upHealthy : '–'}<span class="faint">{" / "}{upTotal || '–'}</span></div></div>
+    <div><div class="s-label">Apps reachable</div><div class="s-val">{upTotal ? upHealthy : '–'}<span class="faint">{" / "}{upTotal || '–'}</span></div></div>
   </div>
   <div class="stat">
     <span class="s-ic"><Server size={18} /></span>
@@ -194,8 +199,9 @@
             <span class="muted xs kind">{kindLabel[s.kind]}</span>
             <span class="mono truncate">{target(s)}</span>
           </div>
+          {#if health(s) === 'err'}<div class="reach-err">{reachError(s)}</div>{/if}
           <div class="site-foot">
-            {#if health(s)}<span class="badge {health(s)}"><span class="dot {health(s)}"></span>{health(s) === 'ok' ? 'healthy' : 'upstream down'}</span>{/if}
+            {#if health(s)}<span class="badge {health(s)}" title={reachError(s) || 'Caddy can connect to this app'}><span class="dot {health(s)}"></span>{health(s) === 'ok' ? 'reachable' : "can't reach app"}</span>{/if}
             {#if s.config.maintenance}<span class="badge warn"><Construction /> maintenance</span>{/if}
             {#if secured(s)}<span class="badge"><Lock /> protected</span>{/if}
             {#each (s.tags || []).slice(0, 3) as t}<span class="badge">{t}</span>{/each}
@@ -292,6 +298,7 @@
   }
   .target :global(svg) { color: var(--muted); flex: none; }
   .target .kind { flex: none; }
+  .reach-err { font-size: 12.5px; line-height: 1.45; color: var(--danger-soft-text); background: var(--danger-soft); border-radius: 8px; padding: 8px 10px; margin-top: -4px; }
   .site-foot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-height: 22px; }
   .add {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 168px;

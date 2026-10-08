@@ -35,6 +35,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/meta", s.guard(V, s.handleMeta))
 	m.HandleFunc("GET /api/status", s.guard(V, s.handleStatus))
 	m.HandleFunc("GET /api/upstreams", s.guard(V, s.handleUpstreams))
+	m.HandleFunc("GET /api/upstreams/reach", s.guard(V, s.handleReach))
 	m.HandleFunc("POST /api/scan", s.guard(E, s.handleScan))
 
 	m.HandleFunc("GET /api/sites", s.guard(V, s.listSites))

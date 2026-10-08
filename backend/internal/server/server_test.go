@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -185,3 +186,41 @@ func TestRolesAndSecretMasking(t *testing.T) {
 }
 
 func itoa(i int) string { b, _ := json.Marshal(i); return string(b) }
+
+func TestReachExplainsFailures(t *testing.T) {
+	ts, _ := newTestServer(t)
+	c := newClient(t, ts.URL)
+	c.do("POST", "/api/setup", map[string]string{"username": "admin", "password": "long enough password"})
+	// A listener that is up, a closed port, and a name that doesn't resolve.
+	up := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer up.Close()
+	upAddr := strings.TrimPrefix(up.URL, "http://")
+	for i, u := range []string{upAddr, "127.0.0.1:1", "no-such-container.invalid:8096"} {
+		site := map[string]any{"name": fmt.Sprint(i), "hosts": []string{fmt.Sprintf("s%d.example.com", i)}, "kind": "proxy", "enabled": true,
+			"config": map[string]any{"proxy": map[string]any{"upstreams": []string{u}}}}
+		if code, out := c.do("POST", "/api/sites", site); code != 201 {
+			t.Fatalf("create: %d %v", code, out)
+		}
+	}
+	req, _ := http.NewRequest("GET", ts.URL+"/api/upstreams/reach", nil)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var res []reachResult
+	json.NewDecoder(resp.Body).Decode(&res)
+	got := map[string]reachResult{}
+	for _, r := range res {
+		got[r.Upstream] = r
+	}
+	if !got[upAddr].OK {
+		t.Errorf("live upstream: %+v", got[upAddr])
+	}
+	if r := got["127.0.0.1:1"]; r.OK || !strings.Contains(r.Error, "nothing is listening") {
+		t.Errorf("closed port: %+v", r)
+	}
+	if r := got["no-such-container.invalid:8096"]; r.OK || !strings.Contains(r.Error, "not found") {
+		t.Errorf("unknown name: %+v", r)
+	}
+}
