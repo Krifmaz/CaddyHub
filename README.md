@@ -32,6 +32,15 @@ The stack runs two containers:
 
 > Tip: to put the panel itself behind HTTPS, set **Settings → Advanced → Serve CaddyHub itself at** (e.g. `caddyhub.example.com`), apply, then set `CADDYHUB_BASE_URL=https://caddyhub.example.com` and `CADDYHUB_TRUST_PROXY_HEADERS=true` in `.env`. After that you can stop publishing port 8080.
 
+### Portainer / prebuilt images
+
+Every push to `main` publishes ready-made images (amd64 + arm64) to GitHub Container Registry:
+
+- `ghcr.io/krifmaz/caddyhub:latest`: the panel
+- `ghcr.io/krifmaz/caddyhub-caddy:latest`: Caddy with the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
+
+Use [docker-compose.portainer.yml](docker-compose.portainer.yml) as the stack. It only pulls images, so it works with Portainer's remote agents, which can't build. If the images are private, first add `ghcr.io` under **Registries** in Portainer, with your GitHub username and a token that has the `read:packages` scope.
+
 ## Using it
 
 1. **Sites**: add a reverse proxy, file server, redirect or static response. Templates fill in sensible defaults for common apps (Vaultwarden, Jellyfin, Immich, Nextcloud, Home Assistant, Proxmox, …).

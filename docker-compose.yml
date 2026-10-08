@@ -10,7 +10,7 @@ services:
       context: ./caddy
       args:
         CADDY_VERSION: ${CADDY_VERSION:-2}
-        CADDY_PLUGINS: ${CADDY_PLUGINS:-github.com/caddy-dns/cloudflare github.com/mholt/caddy-ratelimit}
+        CADDY_PLUGINS: ${CADDY_PLUGINS:-github.com/caddy-dns/cloudflare github.com/caddy-dns/porkbun github.com/caddy-dns/duckdns github.com/caddy-dns/namecheap github.com/caddy-dns/route53 github.com/caddy-dns/digitalocean github.com/caddy-dns/hetzner/v2 github.com/caddy-dns/desec github.com/caddy-dns/ovh github.com/caddy-dns/gandi github.com/caddy-dns/acmedns github.com/mholt/caddy-ratelimit}
     image: caddyhub-caddy:latest
     restart: unless-stopped
     ports:

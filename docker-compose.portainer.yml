@@ -1,0 +1,73 @@
+# CaddyHub using prebuilt images (for Portainer, or any host that can't build).
+# Paste this into a Portainer stack. Set CADDYHUB_SECRET_KEY under
+# "Environment variables" (generate one with: openssl rand -base64 32).
+#
+# Upstreams on other stacks: attach their network to the caddy service below
+# (see the commented "external" network), then use container names such as
+# jellyfin:8096 in CaddyHub.
+
+services:
+  caddy:
+    image: ghcr.io/krifmaz/caddyhub-caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CADDY_ADMIN_LISTEN: caddy-admin:2019
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - caddyfile:/etc/caddyhub
+      - caddy-bin:/caddy-bin
+      - secrets:/run/caddyhub/secrets
+      - logs:/var/log/caddy
+    networks:
+      default: {}
+      internal:
+        aliases: [caddy-admin]
+      # apps: {}
+
+  caddyhub:
+    image: ghcr.io/krifmaz/caddyhub:latest
+    restart: unless-stopped
+    depends_on: [caddy]
+    ports:
+      - "${CADDYHUB_PORT:-8080}:8080"
+    environment:
+      CADDYHUB_SECRET_KEY: ${CADDYHUB_SECRET_KEY:-}
+      CADDYHUB_CADDY_ADMIN: caddy-admin:2019
+      CADDYHUB_CADDY_BIN: /caddy-bin/caddy
+      CADDYHUB_CADDYFILE: /etc/caddyhub/Caddyfile
+      CADDYHUB_SECRETS_DIR: /run/caddyhub/secrets
+      CADDYHUB_LOG_DIR: /var/log/caddy
+      CADDYHUB_CADDY_DATA: /caddy-data
+      CADDYHUB_PROBE: caddy:80
+      CADDYHUB_PANEL_UPSTREAM: caddyhub:8080
+    volumes:
+      - caddyhub-data:/data
+      - caddyfile:/etc/caddyhub
+      - caddy-bin:/caddy-bin:ro
+      - secrets:/run/caddyhub/secrets
+      - logs:/var/log/caddy:ro
+      - caddy-data:/caddy-data:ro
+    networks:
+      - default
+      - internal
+
+networks:
+  internal:
+    internal: true
+  # apps:
+  #   external: true
+  #   name: your_other_stack_default
+
+volumes:
+  caddy-data:
+  caddy-config:
+  caddyfile:
+  caddy-bin:
+  secrets:
+  logs:
+  caddyhub-data:
