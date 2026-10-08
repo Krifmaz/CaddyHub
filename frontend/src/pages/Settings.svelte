@@ -19,6 +19,7 @@
     try {
       s = await api.get('/settings')
       s.resolvers ||= []
+      s.scan_ranges ||= []
       s.trusted_proxies ||= { enabled: false, presets: [], custom: [] }
       s.trusted_proxies.presets ||= []
       s.trusted_proxies.custom ||= []
@@ -34,12 +35,14 @@
     try {
       const body = { ...s, cert_alert_days: alertDays.split(',').map((x) => parseInt(x)).filter((x) => x > 0) }
       body.resolvers = (body.resolvers || []).map((x) => x.trim()).filter(Boolean)
+      body.scan_ranges = (body.scan_ranges || []).map((x) => x.trim()).filter(Boolean)
       body.trusted_proxies.custom = body.trusted_proxies.custom.map((x) => x.trim()).filter(Boolean)
       if (eab) body.acme_eab_mac = eab
       if (csKey) body.crowdsec_api_key = csKey
       s = await api.put('/settings', body)
       s.trusted_proxies.custom ||= []
       s.trusted_proxies.presets ||= []
+      s.scan_ranges ||= []
       eab = ''; csKey = ''
       toast('Settings saved. Apply to update Caddy.')
       refreshStatus()
@@ -124,6 +127,11 @@
           <label class="field"><span>Propagation delay</span><input type="text" bind:value={s.propagation_delay} placeholder="e.g. 30s (optional)" /></label>
           <label class="field"><span>Propagation timeout</span><input type="text" bind:value={s.propagation_timeout} placeholder="e.g. 5m (optional)" /></label>
         </div>
+      </div>
+      <div class="card stack">
+        <h2>Find app ranges</h2>
+        <p class="muted small">Networks the “Find app” button scans, besides Docker. The network of the address you open CaddyHub at (e.g. 10.0.1.5 → 10.0.1.0/24) is always included. Add other subnets or VLANs here.</p>
+        <ListInput bind:items={s.scan_ranges} placeholder="10.0.2.0/24" addLabel="Add range" />
       </div>
       <div class="card stack">
         <h2>Behind a CDN or another proxy?</h2>

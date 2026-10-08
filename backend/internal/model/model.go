@@ -250,7 +250,8 @@ type Settings struct {
 
 	PanelDomain string `json:"panel_domain"` // optional: serve the panel itself through Caddy
 
-	DefaultDomain string `json:"default_domain"` // pre-selected base domain for new sites (UI only)
+	DefaultDomain string   `json:"default_domain"` // pre-selected base domain for new sites (UI only)
+	ScanRanges    []string `json:"scan_ranges"`    // extra LAN ranges for "Find app", e.g. 10.0.1.0/24
 
 	DryRun bool `json:"dry_run"` // global "always dry-run" safety toggle
 

@@ -48,6 +48,8 @@ type Found struct {
 	Title  string `json:"title,omitempty"`
 	Server string `json:"server,omitempty"`
 	Guess  string `json:"guess,omitempty"` // likely app name
+	Name   string `json:"name,omitempty"`  // reverse-DNS name of a LAN host (label only)
+	Source string `json:"source"`          // "docker" or "lan"
 }
 
 // Upstream renders the value for a reverse-proxy upstream field.
@@ -169,7 +171,9 @@ func LocalNetworks() (nets []netip.Prefix, self map[netip.Addr]bool) {
 
 // Network scans the local networks. Inside Docker, live containers are found
 // through reverse DNS first, so only real hosts are port-scanned.
-func Network(ctx context.Context, o Options) ([]Found, error) {
+// When skipGateway is set (the host is covered by a LAN scan), the Docker
+// gateway is not scanned, to avoid listing the host's ports twice.
+func Network(ctx context.Context, o Options, skipGateway bool) ([]Found, error) {
 	nets, self := LocalNetworks()
 	if len(nets) == 0 {
 		return nil, errors.New("no private network found to scan; enter an IP or range instead")
@@ -194,7 +198,7 @@ func Network(ctx context.Context, o Options) ([]Found, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			targets = append(targets, named...)
-			if gw := n.Addr().Next(); !o.SkipIPs[gw] {
+			if gw := n.Addr().Next(); !skipGateway && !o.SkipIPs[gw] {
 				targets = append(targets, target{name: gw.String(), ip: gw})
 			}
 		}(n)
@@ -362,3 +366,37 @@ func guess(f Found) string {
 var unescaper = strings.NewReplacer("&amp;", "&", "&lt;", "<", "&gt;", ">", "&quot;", `"`, "&#39;", "'", "&nbsp;", " ")
 
 func htmlUnescape(s string) string { return unescaper.Replace(s) }
+
+// NameResults adds reverse-DNS names (e.g. "nas.lan" from the router) to
+// results that only have an IP. The name is a label: upstreams keep the IP,
+// since LAN names often don't resolve inside the Caddy container.
+func NameResults(ctx context.Context, found []Found) {
+	ips := map[string]bool{}
+	for _, f := range found {
+		if f.Host == f.IP {
+			ips[f.IP] = true
+		}
+	}
+	names := map[string]string{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for ip := range ips {
+		wg.Add(1)
+		go func(ip string) {
+			defer wg.Done()
+			lctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
+			defer cancel()
+			if ns, err := net.DefaultResolver.LookupAddr(lctx, ip); err == nil && len(ns) > 0 {
+				mu.Lock()
+				names[ip] = strings.TrimSuffix(ns[0], ".")
+				mu.Unlock()
+			}
+		}(ip)
+	}
+	wg.Wait()
+	for i := range found {
+		if n, ok := names[found[i].IP]; ok && found[i].Host == found[i].IP {
+			found[i].Name = n
+		}
+	}
+}
