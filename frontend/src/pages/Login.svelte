@@ -86,7 +86,7 @@
 </div>
 
 <style>
-  .wrap { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .wrap { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .panel { display: grid; place-items: center; padding: 32px 20px; }
   .box { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 18px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; margin-bottom: 10px; }

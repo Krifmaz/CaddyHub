@@ -211,12 +211,12 @@
 </div>
 
 <style>
-  .boot { display: grid; place-items: center; min-height: 100vh; animation: pulse 1.2s infinite; }
-  .shell { display: flex; min-height: 100vh; }
+  .boot { display: grid; place-items: center; min-height: 100vh; min-height: 100dvh; animation: pulse 1.2s infinite; }
+  .shell { display: flex; min-height: 100vh; min-height: 100dvh; }
 
   aside {
     width: 256px; flex: none; display: flex; flex-direction: column; gap: 4px;
-    position: sticky; top: 0; height: 100vh; padding: 14px 12px;
+    position: sticky; top: 0; height: 100vh; height: 100dvh; padding: 14px 12px max(14px, env(safe-area-inset-bottom));
     border-right: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 70%, transparent);
     backdrop-filter: blur(8px);
   }
