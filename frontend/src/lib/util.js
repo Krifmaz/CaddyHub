@@ -7,7 +7,7 @@ export function ago(ts) {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 export function when(ts) { return ts ? new Date(ts).toLocaleString() : '' }
-export const kindLabel = { proxy: 'Reverse proxy', static: 'File server', redirect: 'Redirect', respond: 'Static response', none: 'Custom (raw)' }
+export const kindLabel = { proxy: 'Reverse proxy', static: 'File server', redirect: 'Redirect', respond: 'Static response', forward_proxy: 'Forward proxy', none: 'Custom (raw)' }
 export function clone(o) { return JSON.parse(JSON.stringify(o)) }
 export function download(name, text) {
   const a = document.createElement('a')

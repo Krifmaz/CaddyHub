@@ -3,6 +3,7 @@
   import {
     Globe, ShieldCheck, Braces, FileInput, Rocket, History as HistoryIcon, FileCode, Settings as SettingsIcon,
     Users as UsersIcon, Bell, ScrollText, Search, Menu, LogOut, Sun, Moon, Monitor, CircleCheck, CircleX, Info, ArrowRight, X,
+    Puzzle, Signal,
   } from '@lucide/svelte'
   import { api, setCSRF, handleUnauthorized } from './lib/api.js'
   import { app, refreshStatus, can } from './lib/state.svelte.js'
@@ -24,6 +25,8 @@
   import Notifications from './pages/Notifications.svelte'
   import Audit from './pages/Audit.svelte'
   import Account from './pages/Account.svelte'
+  import Plugins from './pages/Plugins.svelte'
+  import Ddns from './pages/Ddns.svelte'
 
   let loading = $state(true)
   let menuOpen = $state(false)
@@ -59,6 +62,7 @@
     { label: 'Configure', items: [
       { path: '/sites', label: 'Sites', icon: Globe },
       { path: '/domains', label: 'Domains & DNS', icon: ShieldCheck, admin: true },
+      { path: '/ddns', label: 'Dynamic DNS', icon: Signal, admin: true },
       { path: '/snippets', label: 'Snippets & raw', icon: Braces },
       { path: '/import', label: 'Import', icon: FileInput, admin: true },
     ] },
@@ -69,6 +73,7 @@
     ] },
     { label: 'Manage', items: [
       { path: '/settings', label: 'Settings', icon: SettingsIcon },
+      { path: '/plugins', label: 'Plugins', icon: Puzzle, admin: true },
       { path: '/users', label: 'Users & API keys', icon: UsersIcon, admin: true },
       { path: '/notifications', label: 'Notifications', icon: Bell, admin: true },
       { path: '/audit', label: 'Audit log', icon: ScrollText, admin: true },
@@ -185,6 +190,10 @@
           <Audit />
         {:else if page === 'account'}
           <Account />
+        {:else if page === 'plugins'}
+          <Plugins />
+        {:else if page === 'ddns'}
+          <Ddns />
         {:else}
           <div class="empty"><h2>Page not found</h2><a href="#/sites">Go to sites</a></div>
         {/if}

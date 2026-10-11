@@ -1,5 +1,6 @@
 node_modules/
-backend/internal/web/ui/dist/
+backend/target/
+backend/ui/dist/
 /data/
 .env
 *.exe

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   backend:
-    name: Go tests (Caddy ${{ matrix.caddy }})
+    name: Rust tests (Caddy ${{ matrix.caddy }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -21,10 +21,10 @@ jobs:
         caddy: [stable, previous, beta]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
+          workspaces: backend
       - name: Download Caddy (${{ matrix.caddy }})
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,12 +42,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/caddy"
           curl -fsSL "https://github.com/caddyserver/caddy/releases/download/$v/caddy_${v#v}_linux_amd64.tar.gz" | tar -xz -C "$RUNNER_TEMP/caddy" caddy
           echo "CADDY_BIN=$RUNNER_TEMP/caddy/caddy" >> "$GITHUB_ENV"
-      - name: Vet
+      - name: Format
         working-directory: backend
-        run: go vet ./...
+        run: cargo fmt --check
+      - name: Clippy
+        working-directory: backend
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
         working-directory: backend
-        run: go test -race ./...
+        run: cargo test
 
   frontend:
     name: Web UI build

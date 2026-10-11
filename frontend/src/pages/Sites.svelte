@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import {
     Plus, Search, LayoutGrid, List, ArrowUp, ArrowDown, Globe, FileInput, Server, Folder, CornerUpRight,
-    MessageSquare, Code, Construction, Lock, ExternalLink, Activity, Rocket, Layers,
+    MessageSquare, Code, Construction, Lock, ExternalLink, Activity, Rocket, Layers, ArrowLeftRight,
   } from '@lucide/svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, refreshStatus, can } from '../lib/state.svelte.js'
@@ -19,7 +19,7 @@
   let view = $state(localStorage.getItem('caddyhub-sites-view') || 'grid')
   $effect(() => { try { localStorage.setItem('caddyhub-sites-view', view) } catch {} })
 
-  const kindIcon = { proxy: Server, static: Folder, redirect: CornerUpRight, respond: MessageSquare, none: Code }
+  const kindIcon = { proxy: Server, static: Folder, redirect: CornerUpRight, respond: MessageSquare, forward_proxy: ArrowLeftRight, none: Code }
 
   async function load() {
     try { sites = await api.get('/sites') } catch (e) { toastErr(e); sites = [] }
@@ -51,6 +51,7 @@
       case 'static': return c.static?.root || ''
       case 'redirect': return c.redirect?.to || ''
       case 'respond': return `${c.respond?.status || 200} · ${(c.respond?.body || '').slice(0, 40)}`
+      case 'forward_proxy': { const n = c.forward_proxy?.basic_auth?.length || 0; return n ? `${n} login(s)` : 'open proxy (no login)' }
       default: return 'custom Caddyfile'
     }
   }

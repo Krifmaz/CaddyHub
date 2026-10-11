@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import {
     Radar, ArrowLeft, ArrowRight, CopyPlus, Trash2, Sparkles, Server, Folder, CornerUpRight, MessageSquare, Code, Activity,
-    Route, ShieldCheck, Lock, Gauge, Construction, ChevronDown, Plus, Check, Info, CircleAlert, Fingerprint,
+    Route, ShieldCheck, Lock, Gauge, Construction, ChevronDown, Plus, Check, Info, CircleAlert, Fingerprint, ArrowLeftRight, TriangleAlert,
   } from '@lucide/svelte'
   import { api } from '../lib/api.js'
   import { app, toast, toastErr, refreshStatus, loadMeta, can } from '../lib/state.svelte.js'
@@ -38,6 +38,7 @@
   let defaultDomain = $state('')
   let hostKey = $state(0)
   let scanning = $state(false)
+  let portsText = $state('')
 
   // Quick fill from a scan result: upstream, and name/hostname if still empty.
   function usePick(r) {
@@ -71,6 +72,10 @@
     c.static ||= { root: '' }
     c.redirect ||= { to: '', code: 302 }
     c.respond ||= { status: 200, body: '' }
+    c.forward_proxy ||= {}
+    c.forward_proxy.basic_auth ||= []
+    c.forward_proxy.ports ||= []
+    c.forward_proxy.acl ||= []
     c.access.allow_cidrs ||= []
     c.access.deny_cidrs ||= []
     c.access.basic_auth ||= []
@@ -97,6 +102,7 @@
       defaultDomain = st.default_domain || domainList[0] || ''
       site = ensure(s)
       tagText = (site.tags || []).join(', ')
+      portsText = site.config.forward_proxy.ports.join(', ')
       accessLog = site.config.access_log == null ? 'default' : site.config.access_log ? 'on' : 'off'
     } catch (e) { toastErr(e); go('/sites') }
   })
@@ -108,6 +114,7 @@
     s.hosts = typed ? site.hosts : [defaultDomain ? `${t.id}.${defaultDomain}` : '']
     s.name = site.name || t.name
     site = s
+    portsText = site.config.forward_proxy.ports.join(', ')
     hostKey++
     toast(`Filled in ${t.name} defaults. Check the address and the upstream (container name:port).`)
   }
@@ -118,7 +125,12 @@
     const c = s.config
     s.tags = tagText.split(',').map((t) => t.trim()).filter(Boolean)
     s.hosts = s.hosts.map((h) => h.trim()).filter(Boolean)
-    for (const k of ['proxy', 'static', 'redirect', 'respond']) if (s.kind !== k) delete c[k]
+    if (c.forward_proxy) {
+      c.forward_proxy.ports = portsText.split(',').map((x) => parseInt(x)).filter((x) => x > 0)
+      c.forward_proxy.acl = (c.forward_proxy.acl || []).map((x) => x.trim()).filter(Boolean)
+      c.forward_proxy.basic_auth = (c.forward_proxy.basic_auth || []).filter((u) => u.username?.trim() || u.password)
+    }
+    for (const k of ['proxy', 'static', 'redirect', 'respond', 'forward_proxy']) if (s.kind !== k) delete c[k]
     if (c.redirect) c.redirect.code = Number(c.redirect.code) || 302
     if (c.respond) c.respond.status = Number(c.respond.status) || 200
     c.access_log = accessLog === 'default' ? null : accessLog === 'on'
@@ -240,7 +252,7 @@
     <div class="card stack">
       <div class="card-head"><div><h2>What should this site do?</h2><div class="desc">Pick how Caddy handles requests.</div></div></div>
       <div class="kinds">
-        {#each [['proxy', Server, 'Reverse proxy', 'Forward to an app'], ['static', Folder, 'File server', 'Serve a folder'], ['redirect', CornerUpRight, 'Redirect', 'Send elsewhere'], ['respond', MessageSquare, 'Response', 'Fixed text & status'], ['none', Code, 'Custom', 'Raw Caddyfile']] as [k, Icon, label, desc]}
+        {#each [['proxy', Server, 'Reverse proxy', 'Forward to an app'], ['static', Folder, 'File server', 'Serve a folder'], ['redirect', CornerUpRight, 'Redirect', 'Send elsewhere'], ['respond', MessageSquare, 'Response', 'Fixed text & status'], ['forward_proxy', ArrowLeftRight, 'Forward proxy', 'HTTPS proxy for devices'], ['none', Code, 'Custom', 'Raw Caddyfile']] as [k, Icon, label, desc]}
           <label class="kind" class:active={site.kind === k}>
             <input type="radio" name="kind" value={k} bind:group={site.kind} />
             <span class="k-ic"><Icon size={18} /></span>
@@ -283,6 +295,39 @@
           <label class="field"><span>Content type</span><input type="text" bind:value={site.config.respond.content_type} placeholder="text/plain (optional)" /></label>
         </div>
         <label class="field"><span>Body</span><textarea rows="4" bind:value={site.config.respond.body}></textarea></label>
+      {:else if site.kind === 'forward_proxy'}
+        {#if !available('forward_proxy')}
+          <div class="alert warn"><TriangleAlert /><span>The <code>forwardproxy</code> plugin isn't in your Caddy build. <a href="#/plugins">Install it under Plugins</a>, then apply.</span></div>
+        {/if}
+        <p class="muted small">Point devices at <span class="mono">https://{site.hosts.find((h) => h.trim()) || 'proxy.example.com'}:443</span> as their HTTPS proxy. Logins are kept as plain text because the plugin compares them as-is; use a dedicated password.</p>
+        <div class="field">
+          <span>Logins</span>
+          {#each site.config.forward_proxy.basic_auth as u, i}
+            <div class="row">
+              <input type="text" bind:value={u.username} placeholder="username" style="max-width:200px" autocomplete="off" />
+              <input type="password" bind:value={u.password} placeholder="password" style="max-width:220px" autocomplete="new-password" />
+              <button class="btn ghost icon sm" type="button" aria-label="Remove login" onclick={() => site.config.forward_proxy.basic_auth.splice(i, 1)}><Trash2 size={15} /></button>
+            </div>
+          {/each}
+          <div><button class="btn xs" type="button" onclick={() => site.config.forward_proxy.basic_auth.push({ username: '', password: '' })}><Plus size={14} /> Add login</button></div>
+          <span class="hint">Without a login the proxy is open to anyone who finds it. Combine with the IP rules under Access control.</span>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" bind:checked={site.config.forward_proxy.hide_ip} /> Hide client IPs (no X-Forwarded-For)</label>
+          <label class="check"><input type="checkbox" bind:checked={site.config.forward_proxy.hide_via} /> Hide the Via header</label>
+        </div>
+        <div class="grid2">
+          <label class="field"><span>Allowed destination ports</span><input type="text" bind:value={portsText} placeholder="80, 443 (empty = any)" /></label>
+          <label class="field"><span>Probe resistance secret</span><input type="text" bind:value={site.config.forward_proxy.probe_resistance} placeholder="secret.localhost (optional)" />
+            <span class="hint">Only requests for this hostname reveal the proxy; to everyone else it looks like a normal site.</span></label>
+          <label class="field"><span>Dial timeout</span><input type="text" bind:value={site.config.forward_proxy.dial_timeout} placeholder="30s" /></label>
+          <label class="field"><span>Serve a PAC file at</span><input type="text" bind:value={site.config.forward_proxy.serve_pac} placeholder="/proxy.pac (optional)" /></label>
+          <label class="field"><span>Chain to another proxy</span><input type="text" bind:value={site.config.forward_proxy.upstream} placeholder="https://user:pass@host:port (optional)" /></label>
+        </div>
+        <div class="field"><span>Access rules (checked in order)</span>
+          <ListInput bind:items={site.config.forward_proxy.acl} placeholder="deny 10.0.0.0/8" addLabel="Add rule" />
+          <span class="hint"><code>allow</code> or <code>deny</code> followed by a hostname, IP, range or <code>all</code>, e.g. <code>deny 192.168.0.0/16</code> then <code>allow all</code>.</span>
+        </div>
       {:else}
         <div class="alert info"><Info /><span>Write your directives under <strong>Custom Caddyfile</strong> below. They go inside this site's block.</span></div>
       {/if}

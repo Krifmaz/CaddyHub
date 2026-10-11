@@ -14,4 +14,5 @@ export const templates = [
   { id: 'homepage', name: 'Homepage', site: { ...proxy('homepage:3000'), tags: ['dashboard'] } },
   { id: 'grafana', name: 'Grafana', site: { ...proxy('grafana:3000', { websocket: true }), tags: ['monitoring'] } },
   { id: 'static', name: 'Static website', site: { kind: 'static', config: { static: { root: '/srv/www' }, compression: ['zstd', 'gzip'] } } },
+  { id: 'proxy', name: 'Forward proxy (HTTPS proxy for your devices)', site: { kind: 'forward_proxy', tags: ['network'], config: { forward_proxy: { basic_auth: [{ username: '', password: '' }], hide_ip: true, hide_via: true, ports: [80, 443] } } } },
 ]

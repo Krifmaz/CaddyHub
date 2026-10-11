@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
-// The build is embedded into the Go binary (backend/internal/web).
+// The build is embedded into the Rust binary (backend/src/web.rs).
 // `npm run dev` proxies the API to a panel on :8080.
 export default defineConfig({
   plugins: [svelte()],
   build: {
-    outDir: '../backend/internal/web/ui/dist',
+    outDir: '../backend/ui/dist',
     emptyOutDir: true,
   },
   server: {

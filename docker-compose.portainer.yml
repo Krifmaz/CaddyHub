@@ -49,7 +49,7 @@ services:
     volumes:
       - caddyhub-data:/data
       - caddyfile:/etc/caddyhub
-      - caddy-bin:/caddy-bin:ro
+      - caddy-bin:/caddy-bin             # rw: the plugin manager installs custom builds here
       - secrets:/run/caddyhub/secrets
       - logs:/var/log/caddy:ro
       - caddy-data:/caddy-data:ro
