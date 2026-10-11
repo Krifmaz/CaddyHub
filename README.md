@@ -37,7 +37,7 @@ The stack runs two containers:
 
 ### Portainer / prebuilt images
 
-Every push to `main` publishes ready-made images (amd64 + arm64) to GitHub Container Registry:
+Every push to `main` publishes a ready-made panel image (amd64; arm64 on request from the Actions tab) to GitHub Container Registry, and the Caddy image is rebuilt whenever `caddy/` changes:
 
 - `ghcr.io/krifmaz/caddyhub:latest`: the panel
 - `ghcr.io/krifmaz/caddyhub-caddy:latest`: Caddy with the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
