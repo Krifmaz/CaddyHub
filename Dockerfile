@@ -3,7 +3,7 @@
 # with cargo-zigbuild (zig as the C compiler/linker), so arm64 images don't
 # need emulation.
 
-FROM --platform=$BUILDPLATFORM node:24-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:25-alpine AS ui
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
