@@ -32,7 +32,7 @@
     diff = await api.get(`/versions/diff?a=${open.id}&b=0`).catch((e) => { toastErr(e); return null })
   }
   async function rollback() {
-    if (!confirm(`Re-apply version ${open.id}? Caddy will run exactly that Caddyfile again (it's validated first).\n\nNote: your sites in CaddyHub are not changed; the next normal apply will use them again.`)) return
+    if (!confirm(`Restore version ${open.id}? Caddy will run exactly that Caddyfile again (it's validated first), and the sites and settings in CaddyHub go back to that version too. Unapplied edits are lost.\n\n(Versions applied by an older CaddyHub have no saved sites; for those only the Caddyfile is re-applied.)`)) return
     busy = true
     try {
       const r = await api.post(`/versions/${open.id}/rollback`)

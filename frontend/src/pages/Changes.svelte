@@ -1,8 +1,9 @@
 <script>
   import { onMount } from 'svelte'
-  import { RefreshCw, ShieldCheck, CircleCheck, CircleX, Info, TriangleAlert, Rocket, FlaskConical, FileCode, Undo2 } from '@lucide/svelte'
+  import { RefreshCw, ShieldCheck, CircleCheck, CircleX, Info, TriangleAlert, Rocket, FlaskConical, FileCode, Undo2, Trash2, Download, History } from '@lucide/svelte'
   import { api } from '../lib/api.js'
   import { toast, toastErr, refreshStatus, can } from '../lib/state.svelte.js'
+  import { download, when } from '../lib/util.js'
   import Diff from '../lib/Diff.svelte'
   import Errors from '../lib/Errors.svelte'
 
@@ -12,14 +13,49 @@
   let result = $state(null)
   let message = $state('')
   let showFull = $state(false)
+  let goods = $state([])   // applied versions, newest first
 
   async function load() {
     loading = true
     result = null
     try { plan = await api.post('/config/plan') } catch (e) { toastErr(e) }
+    try { goods = (await api.get('/versions?limit=50')).filter((v) => v.good) } catch { goods = [] }
     loading = false
   }
   onMount(load)
+  // The version Caddy ran before the last apply: what "Revert" goes back to.
+  const previous = $derived(goods.length > 1 ? goods[1] : null)
+
+  async function discard() {
+    if (!confirm('Throw away every change made since the last apply? Sites, domains, DNS accounts, snippets, raw blocks and settings go back to what Caddy is running now. This cannot be undone.')) return
+    applying = true
+    try {
+      const r = await api.post('/config/discard')
+      toast(`Changes discarded; back to version #${r.version_id}.`)
+      await load(); refreshStatus()
+    } catch (e) { toastErr(e) }
+    applying = false
+  }
+  async function revert() {
+    if (!previous) return
+    if (!confirm(`Revert the last apply? Caddy goes back to version #${previous.id} (${when(previous.created_at)}), and the sites and settings in CaddyHub with it. The current unapplied edits are lost.`)) return
+    applying = true
+    result = null
+    try {
+      result = await api.post(`/versions/${previous.id}/rollback`)
+      if (result.status === 'applied') toast(`Reverted to version #${previous.id}.`)
+      await load(); refreshStatus()
+    } catch (e) { toastErr(e) }
+    applying = false
+  }
+  async function backup() {
+    try {
+      const env = await api.get('/backup')
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
+      download(`caddyhub-backup-${stamp}.json`, JSON.stringify(env, null, 2))
+      toast('Backup downloaded. It is encrypted with your CADDYHUB_SECRET_KEY; keep the key with it.')
+    } catch (e) { toastErr(e) }
+  }
 
   async function run(dry) {
     applying = true
@@ -80,6 +116,21 @@
       {/if}
     </div>
 
+    {#if can.edit()}
+      <div class="row tools">
+        {#if plan.changed}
+          <button class="btn danger" onclick={discard} disabled={applying} title="Put sites, domains, snippets, raw blocks and settings back to what was last applied"><Trash2 size={15} /> Discard changes</button>
+        {/if}
+        {#if previous}
+          <button class="btn" onclick={revert} disabled={applying} title="Go back to the version Caddy ran before the last apply"><History size={15} /> Revert last apply <span class="faint">(to #{previous.id})</span></button>
+        {/if}
+        {#if can.admin()}
+          <button class="btn" onclick={backup} disabled={applying} title="Download an encrypted backup of the whole configuration"><Download size={15} /> Backup</button>
+        {/if}
+        <span class="hint grow">Discard throws away unapplied edits. Revert re-applies the previous version and restores its sites and settings. Backup downloads everything except users and API keys, encrypted with the panel's secret key; restore it from Settings → Advanced.</span>
+      </div>
+    {/if}
+
     <Errors {plan} />
     {#each plan.warnings || [] as w}<div class="alert warn"><TriangleAlert /><span>{w}</span></div>{/each}
 
@@ -117,6 +168,8 @@
   .plus { color: var(--ok); }
   .minus { color: var(--danger); }
   .sum-actions { margin-left: auto; display: flex; gap: 8px; }
+  .tools { gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tools .hint { min-width: 200px; flex: 1 1 260px; }
   :global(.spin) { animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 640px) { .sum-actions { margin-left: 0; width: 100%; } .sum-actions .btn { flex: 1; } }

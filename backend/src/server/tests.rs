@@ -443,3 +443,103 @@ async fn update_settings_and_report() {
     assert_eq!(r["auto_blocked"], "no update available");
     assert!(r["next_check"].is_string(), "{r}");
 }
+
+#[tokio::test]
+async fn backup_restore_and_discard() {
+    let ts = start().await;
+    let mut admin = TestClient::new(&ts.base);
+    admin
+        .call(
+            "POST",
+            "/api/setup",
+            Some(json!({"username": "admin", "password": "long enough password"})),
+        )
+        .await;
+    let (code, site) = admin
+        .call(
+            "POST",
+            "/api/sites",
+            Some(
+                json!({"name": "app", "hosts": ["app.example.com"], "kind": "proxy",
+                "config": {"proxy": {"upstreams": ["127.0.0.1:3000"]}}}),
+            ),
+        )
+        .await;
+    assert_eq!(code, 201, "{site}");
+    let site_id = site["id"].as_i64().unwrap();
+
+    // Download: metadata in the clear, the rest sealed.
+    let (code, env) = admin.call("GET", "/api/backup", None).await;
+    assert_eq!(code, 200, "{env}");
+    assert_eq!(env["format"], "caddyhub-backup");
+    assert_eq!(env["contents"]["sites"], 1);
+    assert!(!env.to_string().contains("app.example.com"));
+
+    // Change things, restore, and the site is back with its id.
+    admin
+        .call("DELETE", &format!("/api/sites/{site_id}"), None)
+        .await;
+    assert_eq!(
+        admin
+            .call("GET", "/api/sites", None)
+            .await
+            .1
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+    let (code, out) = admin
+        .call("POST", "/api/backup/restore", Some(env.clone()))
+        .await;
+    assert_eq!(code, 200, "{out}");
+    assert_eq!(out["restored"]["tables"]["sites"], 1);
+    let (_, sites) = admin.call("GET", "/api/sites", None).await;
+    assert_eq!(sites[0]["id"], site_id);
+    assert_eq!(sites[0]["name"], "app");
+
+    // Garbage and foreign archives are refused.
+    let (code, out) = admin
+        .call(
+            "POST",
+            "/api/backup/restore",
+            Some(json!({"format": "nope"})),
+        )
+        .await;
+    assert_eq!(code, 400, "{out}");
+    let mut tampered = env.clone();
+    tampered["data"] = json!("AAAA");
+    assert_eq!(
+        admin
+            .call("POST", "/api/backup/restore", Some(tampered))
+            .await
+            .0,
+        400
+    );
+
+    // Discard needs an applied version with a snapshot.
+    let (code, out) = admin.call("POST", "/api/config/discard", None).await;
+    assert_eq!(code, 409, "{out}");
+
+    // Viewers can do none of this.
+    let mut viewer = TestClient::new(&ts.base);
+    admin
+        .call(
+            "POST",
+            "/api/users",
+            Some(json!({"username": "v", "password": "long enough password", "role": "viewer"})),
+        )
+        .await;
+    viewer
+        .call(
+            "POST",
+            "/api/login",
+            Some(json!({"username": "v", "password": "long enough password"})),
+        )
+        .await;
+    assert_eq!(viewer.call("GET", "/api/backup", None).await.0, 403);
+    assert_eq!(
+        viewer.call("POST", "/api/config/discard", None).await.0,
+        403
+    );
+}

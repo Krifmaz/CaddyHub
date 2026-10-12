@@ -4,6 +4,7 @@
 
 mod apply;
 mod auth;
+mod backup;
 mod caddy;
 mod caddyfile;
 mod config;

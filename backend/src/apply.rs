@@ -348,6 +348,22 @@ impl Pipeline {
     pub async fn apply_snapshot(&self, version_id: i64, mut opt: Options) -> Result<ApplyResult> {
         let _g = self.lock.lock().await;
         let v = self.store.version(version_id)?;
+        // Versions recorded with a snapshot of the editable configuration
+        // bring it back too, so the sites match what runs again. The current
+        // configuration is kept aside to undo that if the apply fails.
+        let before = if v.model.is_empty() {
+            String::new()
+        } else {
+            crate::backup::snapshot_json(&self.store)
+        };
+        let restored = !v.model.is_empty()
+            && match crate::backup::restore_json(&self.store, &v.model) {
+                Ok(_) => true,
+                Err(e) => {
+                    tracing::warn!(err = %e, version_id, "could not restore the configuration snapshot");
+                    false
+                }
+            };
         // Snapshots may reference secret files: make sure they exist.
         self.build_input()?;
         let plan = self
@@ -357,7 +373,17 @@ impl Pipeline {
             opt.message = format!("rollback to version {version_id}");
         }
         let expect_http = has_site_blocks(&v.caddyfile);
-        self.apply_plan(plan, opt, expect_http).await
+        let mut res = self.apply_plan(plan, opt, expect_http).await?;
+        if restored {
+            if res.status == "applied" {
+                res.message
+                    .push_str("; sites and settings restored from that version");
+            } else if let Err(e) = crate::backup::restore_json(&self.store, &before) {
+                tracing::error!(err = %e, "could not put the configuration back after a failed rollback");
+                res.message.push_str("; WARNING: the sites and settings were changed to that version's and could not be put back");
+            }
+        }
+        Ok(res)
     }
 
     async fn apply_plan(&self, plan: Plan, opt: Options, expect_http: bool) -> Result<ApplyResult> {
@@ -370,6 +396,13 @@ impl Pipeline {
             rolled_back: false,
         };
         let record = |res: &mut ApplyResult, status: &str, msg: &str, good: bool| {
+            // A good version also remembers the editable configuration it
+            // was generated from, for "Discard changes" and History restores.
+            let model = if good {
+                crate::backup::snapshot_json(&self.store)
+            } else {
+                String::new()
+            };
             if let Ok(v) = self.store.add_version(ConfigVersion {
                 user: opt.user.clone(),
                 caddyfile: res.plan.caddyfile.clone(),
@@ -377,6 +410,7 @@ impl Pipeline {
                 message: msg.into(),
                 good,
                 caddy_version: version.clone(),
+                model,
                 ..Default::default()
             }) {
                 res.version_id = v.id;

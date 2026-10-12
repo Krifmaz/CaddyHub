@@ -47,8 +47,8 @@ Paste [docker-compose.yml](docker-compose.yml) into a Portainer stack (drop the 
 
 1. **Sites**: add a reverse proxy, file server, redirect, static response or forward proxy. Templates fill in sensible defaults for common apps (Vaultwarden, Jellyfin, Immich, Nextcloud, Home Assistant, Proxmox, …), and “Find app” scans Docker and your LAN to fill in the upstream.
    Per site you can set path routes, load balancing and health checks, HTTPS mode, www/HTTP redirects, headers, compression, upload limits, basic auth, IP allow/deny lists, Authelia/Authentik forward auth, rate limits, maintenance mode, and an extra raw Caddyfile box.
-2. **Review & apply**: see the diff and validation result, then apply, or do a dry run.
-3. **History**: every attempt with its exact Caddyfile, a diff against any other version, and one-click restore.
+2. **Review & apply**: see the diff and validation result, then apply, or do a dry run. **Discard changes** throws away everything edited since the last apply; **Revert last apply** goes back to the version Caddy ran before, sites and settings included; **Backup** downloads an encrypted archive of the whole configuration.
+3. **History**: every attempt with its exact Caddyfile, a diff against any other version, and one-click restore that also brings back the sites and settings of that version.
 
 Other pages:
 
@@ -99,7 +99,11 @@ A custom build installed from the Plugins page keeps being used after an image u
 
 ### Backups
 
-Everything lives in Docker volumes. Back up `panel-data` (database + secret key, if generated) and `caddy-data` (certificates). If you set `CADDYHUB_SECRET_KEY` in `.env`, keep it with the backup: it decrypts stored DNS credentials.
+**From the UI**: **Backup** on Review & apply, or **Settings → Advanced → Backup & restore**, downloads `caddyhub-backup-<date>.json`: every site, domain, DNS account, snippet, raw block, template, notification channel, named secret and the settings, encrypted with the panel's `CADDYHUB_SECRET_KEY` (the file shows only counts in the clear). **Restore from file…** on the same settings page replaces all of that in one transaction, keeping ids, and leaves Caddy untouched until you review and apply. A restore needs the same secret key, so keep the key with the file. Users, API keys, the version history and the audit log are not in the archive; certificates live in Caddy's data volume.
+
+**Whole volumes**: back up the `data` volume (database + secret key, if generated) and `caddy-data` (certificates). If you set `CADDYHUB_SECRET_KEY` in `.env`, keep it with the backup: it decrypts stored DNS credentials.
+
+Every successful apply also records a snapshot of the configuration with the version, which is what **Discard changes**, **Revert last apply** and History restores use.
 
 ## Configuration
 
@@ -166,8 +170,7 @@ Planned:
 - Certificate overview (expiry, issuer, force renew) with expiry alerts
 - Live access-log viewer and per-site metrics
 - “Test route” button
-- Backup/restore archive from the UI, and scheduled backups
+- Scheduled backups to a folder or S3
 - OIDC login (Authentik, Authelia, Pocket ID, Keycloak)
 - Docker label auto-discovery
-- Update notifications
 - Syntax-highlighted editor for raw blocks

@@ -147,4 +147,10 @@ CREATE TABLE caddy_builds (
 	active     INTEGER NOT NULL DEFAULT 0
 );
 "#,
+    // 2: snapshot of the editable configuration recorded with each applied
+    // version (see backup.rs), so Discard changes and History restores can
+    // put the sites and settings back.
+    r#"
+ALTER TABLE config_versions ADD COLUMN model TEXT NOT NULL DEFAULT '';
+"#,
 ];

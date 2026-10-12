@@ -554,3 +554,86 @@ pub async fn list_audit(
         .store
         .audit_log(q.get("q").map(|s| s.as_str()).unwrap_or(""), limit, offset)?)
 }
+
+// ---------------------------------------------------------------- discard / backup
+
+/// Puts the editable configuration back to what was last applied, from the
+/// snapshot recorded with that version.
+pub async fn discard(
+    State(st): State<Arc<AppState>>,
+    Extension(p): Extension<Principal>,
+    c: Client,
+) -> ApiResult {
+    let lg = st.store.last_good().map_err(|_| {
+        ApiError(
+            StatusCode::CONFLICT,
+            "nothing has been applied yet, so there is nothing to go back to".into(),
+        )
+    })?;
+    if lg.model.is_empty() {
+        return Err(ApiError(
+            StatusCode::CONFLICT,
+            format!(
+                "version {} was applied before snapshots were recorded; after the next apply, Discard works from that version on",
+                lg.id
+            ),
+        ));
+    }
+    let sum = crate::backup::restore_json(&st.store, &lg.model)
+        .map_err(|e| ApiError::internal(format!("{e:#}")))?;
+    st.audit(
+        Some(&p),
+        &c,
+        "config.discard",
+        &lg.id.to_string(),
+        "unapplied changes discarded",
+    );
+    ok(&serde_json::json!({"version_id": lg.id, "restored": sum}))
+}
+
+/// A backup archive of the editable configuration, sealed with the secret key.
+pub async fn backup_download(
+    State(st): State<Arc<AppState>>,
+    Extension(p): Extension<Principal>,
+    c: Client,
+) -> ApiResult {
+    let caddy = st.caps().version_s;
+    let env = crate::backup::seal(&st.store, &st.version, &caddy)
+        .map_err(|e| ApiError::internal(format!("{e:#}")))?;
+    st.audit(Some(&p), &c, "backup.download", "", "");
+    let name = format!(
+        "caddyhub-backup-{}.json",
+        chrono::Utc::now().format("%Y%m%d-%H%M%S")
+    );
+    let mut r = super::json(StatusCode::OK, &env);
+    if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{name}\"")) {
+        r.headers_mut().insert(header::CONTENT_DISPOSITION, v);
+    }
+    Ok(r)
+}
+
+/// Restores a backup archive: replaces sites, domains, DNS accounts,
+/// snippets, raw blocks, templates, notification channels, named secrets and
+/// settings. Nothing is applied to Caddy; review and apply afterwards.
+pub async fn backup_restore(
+    State(st): State<Arc<AppState>>,
+    Extension(p): Extension<Principal>,
+    c: Client,
+    JsonBody(env): JsonBody<crate::backup::Envelope>,
+) -> ApiResult {
+    let snap = crate::backup::open(&st.store, &env).map_err(|e| ApiError::bad(format!("{e:#}")))?;
+    let sum =
+        crate::backup::restore(&st.store, &snap).map_err(|e| ApiError::bad(format!("{e:#}")))?;
+    st.audit(
+        Some(&p),
+        &c,
+        "backup.restore",
+        &env.created_at.map(|t| t.to_rfc3339()).unwrap_or_default(),
+        &format!("{} tables", sum.tables.len()),
+    );
+    ok(&serde_json::json!({
+        "restored": sum,
+        "created_at": env.created_at,
+        "panel_version": env.panel_version,
+    }))
+}

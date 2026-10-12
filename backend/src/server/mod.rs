@@ -611,6 +611,7 @@ pub fn router(st: Arc<AppState>) -> Router {
             axum::routing::put(resources::save_snippet_id).delete(resources::delete_snippet),
         )
         .route("/config/apply", post(ops::apply))
+        .route("/config/discard", post(ops::discard))
         .route("/config/validate", post(ops::validate_text))
         .route("/versions/{id}/rollback", post(ops::rollback_version))
         .route_layer(layer(E));
@@ -665,6 +666,8 @@ pub fn router(st: Arc<AppState>) -> Router {
         .route("/plugins/reset", post(plugin_handlers::reset))
         .route("/plugins/rollback", post(plugin_handlers::rollback))
         .route("/updates/check", post(plugin_handlers::updates_check))
+        .route("/backup", get(ops::backup_download))
+        .route("/backup/restore", post(ops::backup_restore))
         .route_layer(layer(A));
 
     let api = Router::new()

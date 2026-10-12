@@ -4,6 +4,37 @@
   import { app, toast, toastErr, refreshStatus, loadMeta, can } from '../lib/state.svelte.js'
   import ListInput from '../lib/ListInput.svelte'
   import { knownDomains } from '../lib/domains.js'
+  import { download } from '../lib/util.js'
+
+  let restoring = $state(false)
+  let restored = $state(null)
+  async function backup() {
+    try {
+      const env = await api.get('/backup')
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
+      download(`caddyhub-backup-${stamp}.json`, JSON.stringify(env, null, 2))
+      toast('Backup downloaded. It is encrypted with your CADDYHUB_SECRET_KEY; keep the key with it.')
+    } catch (e) { toastErr(e) }
+  }
+  async function restoreFile(ev) {
+    const file = ev.target.files?.[0]
+    ev.target.value = ''
+    if (!file) return
+    let env
+    try { env = JSON.parse(await file.text()) } catch { toast('That file is not a CaddyHub backup.', 'err'); return }
+    const made = env.created_at ? new Date(env.created_at).toLocaleString() : 'unknown date'
+    const n = Object.entries(env.contents || {}).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')
+    if (!confirm(`Restore the backup from ${made}?\n\nIt holds: ${n || 'unknown contents'}.\n\nThis REPLACES all sites, domains, DNS accounts, snippets, raw blocks, templates, notification channels and settings. Users and API keys are kept. Nothing is applied to Caddy until you review and apply.`)) return
+    restoring = true
+    restored = null
+    try {
+      restored = await api.post('/backup/restore', env)
+      s = await api.get('/settings')
+      toast('Backup restored. Review & apply to put it into Caddy.')
+      refreshStatus()
+    } catch (e) { toastErr(e) }
+    restoring = false
+  }
 
   let s = $state(null)
   let tab = $state('certs')
@@ -177,6 +208,19 @@
           <textarea rows="8" bind:value={s.raw_global} placeholder="servers {'{'}&#10;&#9;timeouts {'{'}&#10;&#9;&#9;read_body 10s&#10;&#9;{'}'}&#10;{'}'}"></textarea>
           <span class="hint">Placed inside the global <code>{'{ }'}</code> block. Checked by Caddy before every apply.</span></label>
       </div>
+      {#if can.admin()}
+        <div class="card stack">
+          <h2>Backup &amp; restore</h2>
+          <p class="hint">A backup holds every site, domain, DNS account, snippet, raw block, template, notification channel, named secret and these settings, encrypted with the panel's <code>CADDYHUB_SECRET_KEY</code>. Keep the key with the file: a restore needs the same key. Users, API keys and the history are not included; certificates live in Caddy's data volume.</p>
+          <div class="row" style="gap:8px; flex-wrap:wrap">
+            <button class="btn primary" type="button" onclick={backup}>Download backup</button>
+            <label class="btn" style="cursor:pointer">Restore from file… <input type="file" accept=".json,application/json" style="display:none" onchange={restoreFile} disabled={restoring} /></label>
+          </div>
+          {#if restored}
+            <div class="alert ok"><span>Restored a backup from {restored.created_at ? new Date(restored.created_at).toLocaleString() : 'an unknown date'}: {Object.entries(restored.restored?.tables || {}).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')}. Go to <a href="#/changes">Review &amp; apply</a> to put it into Caddy.</span></div>
+          {/if}
+        </div>
+      {/if}
     {/if}
   </fieldset>
 

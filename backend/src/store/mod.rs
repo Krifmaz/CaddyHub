@@ -695,8 +695,8 @@ impl Store {
         }
         let conn = self.conn();
         conn.execute(
-            "INSERT INTO config_versions(created_at, user, caddyfile, status, message, good, caddy_version) VALUES(?,?,?,?,?,?,?)",
-            params![ts(&v.created_at), v.user, v.caddyfile, v.status, v.message, v.good as i64, v.caddy_version],
+            "INSERT INTO config_versions(created_at, user, caddyfile, status, message, good, caddy_version, model) VALUES(?,?,?,?,?,?,?,?)",
+            params![ts(&v.created_at), v.user, v.caddyfile, v.status, v.message, v.good as i64, v.caddy_version, v.model],
         )?;
         v.id = conn.last_insert_rowid();
         Ok(v)
@@ -737,6 +737,11 @@ impl Store {
         let message = row.get(next())?;
         let good: i64 = row.get(next())?;
         let caddy_version = row.get(next())?;
+        let model = if with_body {
+            row.get(next())?
+        } else {
+            String::new()
+        };
         Ok(ConfigVersion {
             id,
             created_at,
@@ -746,6 +751,7 @@ impl Store {
             message,
             good: good == 1,
             caddy_version,
+            model,
         })
     }
 
@@ -762,7 +768,7 @@ impl Store {
     pub fn version(&self, id: i64) -> Result<ConfigVersion> {
         self.conn()
             .query_row(
-                "SELECT id, created_at, user, caddyfile, status, message, good, caddy_version FROM config_versions WHERE id = ?",
+                "SELECT id, created_at, user, caddyfile, status, message, good, caddy_version, model FROM config_versions WHERE id = ?",
                 params![id],
                 |r| Self::scan_version(r, true),
             )

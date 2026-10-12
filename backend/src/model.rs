@@ -626,6 +626,10 @@ pub struct ConfigVersion {
     pub message: String,
     pub good: bool,
     pub caddy_version: String,
+    /// Snapshot of the editable configuration at apply time (backup.rs);
+    /// internal, never sent to the UI.
+    #[serde(skip)]
+    pub model: String,
 }
 
 /// Caddy update checker and automatic updates (see updates.rs).
