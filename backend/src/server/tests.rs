@@ -396,3 +396,50 @@ async fn forward_proxy_site_validation() {
         "{preview}"
     );
 }
+
+#[tokio::test]
+async fn update_settings_and_report() {
+    let ts = start().await;
+    let mut admin = TestClient::new(&ts.base);
+    admin
+        .call(
+            "POST",
+            "/api/setup",
+            Some(json!({"username": "admin", "password": "long enough password"})),
+        )
+        .await;
+    // Defaults: checking on, installing off, nothing known yet.
+    let (code, r) = admin.call("GET", "/api/updates", None).await;
+    assert_eq!(code, 200, "{r}");
+    assert_eq!(r["settings"]["check"], true);
+    assert_eq!(r["settings"]["auto"], false);
+    assert_eq!(r["settings"]["check_every_hours"], 6);
+    assert_eq!(r["update_available"], false);
+    assert_eq!(r["in_window"], true);
+    assert_eq!(r["auto_blocked"], "automatic updates are off");
+    let (code, s) = admin.call("GET", "/api/status", None).await;
+    assert_eq!(code, 200);
+    assert_eq!(s["update_available"], false);
+
+    // Validation: a half window is refused, a bad time is refused.
+    let (_, mut body) = admin.call("GET", "/api/settings", None).await;
+    body["updates"]["window_start"] = json!("03:00");
+    let (code, out) = admin.call("PUT", "/api/settings", Some(body.clone())).await;
+    assert_eq!(code, 400, "{out}");
+    body["updates"]["window_end"] = json!("5pm");
+    let (code, _) = admin.call("PUT", "/api/settings", Some(body.clone())).await;
+    assert_eq!(code, 400);
+
+    // Automatic installs imply checking; the interval is kept sane.
+    body["updates"] = json!({"check": false, "auto": true, "check_every_hours": 0,
+        "window_start": " 03:00 ", "window_end": "05:00"});
+    let (code, out) = admin.call("PUT", "/api/settings", Some(body)).await;
+    assert_eq!(code, 200, "{out}");
+    assert_eq!(out["updates"]["check"], true);
+    assert_eq!(out["updates"]["check_every_hours"], 6);
+    assert_eq!(out["updates"]["window_start"], "03:00");
+    let (_, r) = admin.call("GET", "/api/updates", None).await;
+    assert_eq!(r["settings"]["auto"], true);
+    assert_eq!(r["auto_blocked"], "no update available");
+    assert!(r["next_check"].is_string(), "{r}");
+}

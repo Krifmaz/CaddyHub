@@ -99,6 +99,10 @@ pub async fn status(State(st): State<Arc<AppState>>) -> ApiResult {
             );
         }
     }
+    // From the background checker: no network call here.
+    let u = st.updates.state();
+    res.insert("update_available".into(), u.update_available.into());
+    res.insert("latest_caddy".into(), u.latest.into());
     ok(&res)
 }
 

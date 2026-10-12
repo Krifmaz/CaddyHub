@@ -39,6 +39,7 @@ use crate::notify::Notifier;
 use crate::plugins;
 use crate::registry::Capabilities;
 use crate::store::{self, Session, Store, User};
+use crate::updates;
 
 pub const COOKIE_NAME: &str = "caddyhub_session";
 const SESSION_ABSOLUTE: chrono::Duration = chrono::Duration::days(7);
@@ -64,6 +65,7 @@ pub struct AppState {
     pub notifier: Arc<Notifier>,
     pub caps: Arc<RwLock<Capabilities>>,
     pub plugins: Arc<plugins::Manager>,
+    pub updates: Arc<updates::Checker>,
     pub version: String,
     /// optional token required by first-run setup
     pub setup_token: String,
@@ -95,6 +97,12 @@ pub struct AppParts {
 
 impl AppState {
     pub fn new(p: AppParts) -> Arc<AppState> {
+        let updates = Arc::new(updates::Checker {
+            store: p.store.clone(),
+            plugins: p.plugins.clone(),
+            notifier: p.notifier.clone(),
+            caps: p.caps.clone(),
+        });
         Arc::new(AppState {
             store: p.store,
             pipeline: p.pipeline,
@@ -103,6 +111,7 @@ impl AppState {
             notifier: p.notifier,
             caps: p.caps,
             plugins: p.plugins,
+            updates,
             version: p.version,
             setup_token: p.setup_token,
             trust_xff: p.trust_xff,
@@ -584,6 +593,7 @@ pub fn router(st: Arc<AppState>) -> Router {
         .route("/versions/diff", get(ops::diff_versions))
         .route("/versions/{id}", get(ops::get_version))
         .route("/ddns/status", get(plugin_handlers::ddns_status))
+        .route("/updates", get(plugin_handlers::updates))
         .route_layer(layer(V));
 
     let editor = Router::new()
@@ -654,6 +664,7 @@ pub fn router(st: Arc<AppState>) -> Router {
         .route("/plugins/job", get(plugin_handlers::job))
         .route("/plugins/reset", post(plugin_handlers::reset))
         .route("/plugins/rollback", post(plugin_handlers::rollback))
+        .route("/updates/check", post(plugin_handlers::updates_check))
         .route_layer(layer(A));
 
     let api = Router::new()

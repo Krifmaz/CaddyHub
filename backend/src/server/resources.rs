@@ -10,6 +10,7 @@ use crate::generator;
 use crate::importer::valid_host;
 use crate::model::*;
 use crate::registry::dns_provider_by_id;
+use crate::updates;
 
 // ---------------------------------------------------------------- sites
 
@@ -730,6 +731,31 @@ pub async fn put_settings(
                     src.kind
                 )));
             }
+        }
+    }
+    {
+        let u = &mut s.updates;
+        if u.check_every_hours <= 0 {
+            u.check_every_hours = 6;
+        }
+        u.check_every_hours = u.interval_hours();
+        u.window_start = u.window_start.trim().to_string();
+        u.window_end = u.window_end.trim().to_string();
+        if u.window_start.is_empty() != u.window_end.is_empty() {
+            return Err(ApiError::bad(
+                "Updates: set both the start and the end of the maintenance window, or neither",
+            ));
+        }
+        if !u.window_start.is_empty()
+            && (updates::parse_hhmm(&u.window_start).is_none()
+                || updates::parse_hhmm(&u.window_end).is_none())
+        {
+            return Err(ApiError::bad(
+                "Updates: window times must be HH:MM (24-hour clock)",
+            ));
+        }
+        if u.auto {
+            u.check = true; // installing needs checking
         }
     }
     st.store.update_settings(|cur| {

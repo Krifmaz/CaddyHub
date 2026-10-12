@@ -55,6 +55,7 @@ Other pages:
 - **Domains & DNS**: DNS-01 validation per domain (each domain can use a different provider/account) and optional wildcard certificates.
 - **Dynamic DNS**: keep A/AAAA records pointed at this server's public address. Uses the same DNS provider accounts as DNS validation and the `caddy-dynamicdns` plugin; the page shows the public IP and whether each record matches.
 - **Plugins**: see which plugins are compiled into the running Caddy, add or remove any package from the official catalog, and update Caddy to the latest release. CaddyHub downloads the build from caddyserver.com's download service (the same one `caddy add-package` uses), checks it, validates your config against it, swaps it in and restarts Caddy. Previous build kept for rollback; “Reset to image” returns to the Caddy shipped in the container image.
+- **Updates** (on the Plugins page): a background checker looks for new Caddy releases (every 6 hours by default), shows a dot in the navigation and sends the “Caddy update available” notification once per release. Turn on **Install new releases automatically** to have them installed through the same checked path, optionally only inside a daily maintenance window.
 - **Snippets & raw**: reusable snippets you attach to sites, plus verbatim top-level blocks.
 - **Import**: on first start, CaddyHub looks for your existing config and offers it with no pasting needed. It checks, in order: the running Caddy (admin API), the `autosave.json` a previous Caddy left in the shared config volume (the Caddy container backs it up once before its first start), and an old Caddyfile mounted at `/import/Caddyfile`. You can also paste a Caddyfile or Caddy JSON. Before you import, CaddyHub regenerates the config, has Caddy check it, and compares every host ("4 sites imported, 0 differences"). Anything it can't map is kept, disabled, for you to review. DNS tokens written in plain text are moved into encrypted storage.
 - **Settings**: certificate authority (Let's Encrypt, ZeroSSL, Google, staging, custom ACME), propagation resolvers, trusted proxies/CDNs, logs and metrics, extra global options, and a dry-run safety mode.
@@ -84,13 +85,17 @@ Caddy plugins are compiled in, so a plugin install means a new binary. The panel
 
 ### Upgrading Caddy
 
-From the UI: **Plugins → Update Caddy** when a new release is out. Or rebuild the image:
+Three ways, all optional:
+
+- **Automatically**: on the Plugins page, under Updates, turn on **Install new releases automatically**. The checker looks for releases on the interval you pick; when one is newer than the running Caddy it is downloaded with your plugins, verified, validated against your configuration, installed and Caddy restarted (a few seconds of downtime). Set a daily window (server local time; set `TZ` on the container) to keep restarts to the night. A release that fails any check is discarded, the running build stays, and the “Automatic Caddy update failed” notification tells you. An update that failed is not retried until the next release, so a broken plugin cannot cause a restart loop.
+- **From the UI**: **Plugins → Update Caddy** when the dot in the navigation says a release is out.
+- **Through the image**: every image build ships the then-current Caddy, so re-pulling `ghcr.io/krifmaz/caddyhub:latest` (or a version tag) also moves Caddy forward:
 
 ```sh
-docker compose build --pull caddy && docker compose up -d caddy
+docker compose pull && docker compose up -d
 ```
 
-To pin a version, set `CADDY_VERSION` (an official image tag such as `2.11` or `2.11.7`) in `.env`.
+A custom build installed from the Plugins page keeps being used after an image update as long as it starts; it is newer or equal anyway, since every install fetches the current release.
 
 ### Backups
 

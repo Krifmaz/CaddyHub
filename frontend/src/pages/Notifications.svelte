@@ -13,7 +13,7 @@
   const typeNames = { webhook: 'Webhook', ntfy: 'ntfy', gotify: 'Gotify', discord: 'Discord', slack: 'Slack', email: 'Email (SMTP)' }
   const eventNames = {
     apply_failed: 'Config apply failed', cert_expiring: 'Certificate expiring', cert_error: 'Certificate error',
-    upstream_down: 'Upstream down', upstream_up: 'Upstream back up', update_available: 'Caddy update available',
+    upstream_down: 'Upstream down', upstream_up: 'Upstream back up', update_available: 'Caddy update available', update_installed: 'Caddy updated automatically', update_failed: 'Automatic Caddy update failed',
     backup_failed: 'Backup failed', discovery: 'New container discovered',
   }
   const fieldLabels = { url: 'URL', token: 'Token', priority: 'Priority', header: 'Extra header (Name: value)', host: 'SMTP host', port: 'Port', username: 'Username', password: 'Password', from: 'From address', to: 'To address', tls: 'TLS (starttls / tls / none)' }

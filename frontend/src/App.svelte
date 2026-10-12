@@ -73,7 +73,7 @@
     ] },
     { label: 'Manage', items: [
       { path: '/settings', label: 'Settings', icon: SettingsIcon },
-      { path: '/plugins', label: 'Plugins', icon: Puzzle, admin: true },
+      { path: '/plugins', label: 'Plugins', icon: Puzzle, admin: true, update: true },
       { path: '/users', label: 'Users & API keys', icon: UsersIcon, admin: true },
       { path: '/notifications', label: 'Notifications', icon: Bell, admin: true },
       { path: '/audit', label: 'Audit log', icon: ScrollText, admin: true },
@@ -116,6 +116,7 @@
                 <n.icon size={17} strokeWidth={1.9} />
                 <span class="grow">{n.label}</span>
                 {#if n.pending && st?.pending_changes}<span class="dot warn pulse" title="Unapplied changes"></span>{/if}
+                {#if n.update && st?.update_available}<span class="dot warn" title="Caddy {st.latest_caddy} is available"></span>{/if}
               </a>
             {/if}
           {/each}

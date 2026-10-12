@@ -93,3 +93,19 @@ pub async fn ddns_status(State(st): State<Arc<AppState>>) -> ApiResult {
     let d = st.store.settings().ddns;
     ok(&ddns::status(&d).await)
 }
+
+/// Update checker state and schedule (shown on the Plugins page).
+pub async fn updates(State(st): State<Arc<AppState>>) -> ApiResult {
+    ok(&st.updates.report())
+}
+
+/// Checks for a new Caddy release right now.
+pub async fn updates_check(
+    State(st): State<Arc<AppState>>,
+    Extension(p): Extension<Principal>,
+    c: Client,
+) -> ApiResult {
+    let r = st.updates.check(true).await;
+    st.audit(Some(&p), &c, "updates.check", &r.latest, "");
+    ok(&st.updates.report())
+}

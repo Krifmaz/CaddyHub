@@ -21,6 +21,7 @@ mod secrets;
 mod server;
 mod store;
 mod supervisor;
+mod updates;
 mod web;
 
 use anyhow::{Context, Result};
@@ -171,6 +172,9 @@ async fn run(cfg: config::Config) -> Result<()> {
         bootstrap_managed_config(&managed, &state).await;
         tokio::spawn(managed.run(state.admin.clone(), stop_rx.clone()));
     }
+
+    // Update checker and automatic Caddy updates (settings decide what it does).
+    tokio::spawn(state.updates.clone().run(stop_rx.clone()));
 
     // Background jobs: Caddy capability detection and session cleanup.
     {

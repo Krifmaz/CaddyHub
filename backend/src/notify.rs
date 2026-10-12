@@ -16,6 +16,8 @@ pub const EVENT_CERT_ERROR: &str = "cert_error";
 pub const EVENT_UPSTREAM_DOWN: &str = "upstream_down";
 pub const EVENT_UPSTREAM_UP: &str = "upstream_up";
 pub const EVENT_UPDATE_AVAILABLE: &str = "update_available";
+pub const EVENT_UPDATE_INSTALLED: &str = "update_installed";
+pub const EVENT_UPDATE_FAILED: &str = "update_failed";
 pub const EVENT_BACKUP_FAILED: &str = "backup_failed";
 pub const EVENT_DISCOVERY: &str = "discovery";
 
@@ -27,6 +29,8 @@ pub const ALL_EVENTS: &[&str] = &[
     EVENT_UPSTREAM_DOWN,
     EVENT_UPSTREAM_UP,
     EVENT_UPDATE_AVAILABLE,
+    EVENT_UPDATE_INSTALLED,
+    EVENT_UPDATE_FAILED,
     EVENT_BACKUP_FAILED,
     EVENT_DISCOVERY,
 ];
@@ -231,10 +235,9 @@ fn subscribed(events: &[String], e: &str) -> bool {
 
 fn tag_for(event: &str) -> &'static str {
     match event {
-        EVENT_APPLY_FAILED | EVENT_CERT_ERROR | EVENT_UPSTREAM_DOWN | EVENT_BACKUP_FAILED => {
-            "warning"
-        }
-        EVENT_UPSTREAM_UP => "white_check_mark",
+        EVENT_APPLY_FAILED | EVENT_CERT_ERROR | EVENT_UPSTREAM_DOWN | EVENT_BACKUP_FAILED
+        | EVENT_UPDATE_FAILED => "warning",
+        EVENT_UPSTREAM_UP | EVENT_UPDATE_INSTALLED => "white_check_mark",
         EVENT_UPDATE_AVAILABLE => "package",
         _ => "bell",
     }

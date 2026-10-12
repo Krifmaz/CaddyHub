@@ -450,8 +450,10 @@ pub struct Settings {
     pub oidc: OidcSettings,
     pub session_timeout_minutes: i64,
 
-    pub update_check: bool,
     pub discovery: bool,
+
+    /// Caddy update checker and automatic updates (see updates.rs).
+    pub updates: UpdateSettings,
 
     /// Dynamic DNS (caddy-dynamicdns plugin).
     pub ddns: DdnsSettings,
@@ -598,8 +600,8 @@ impl Default for Settings {
                 ..Default::default()
             },
             session_timeout_minutes: 60,
-            update_check: true,
             discovery: false,
+            updates: UpdateSettings::default(),
             ddns: DdnsSettings {
                 check_interval: "5m".into(),
                 ipv4: true,
@@ -624,4 +626,39 @@ pub struct ConfigVersion {
     pub message: String,
     pub good: bool,
     pub caddy_version: String,
+}
+
+/// Caddy update checker and automatic updates (see updates.rs).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct UpdateSettings {
+    /// Look for new Caddy releases in the background.
+    pub check: bool,
+    /// Install a new release without asking (same safe path as Update Caddy).
+    pub auto: bool,
+    /// Hours between checks.
+    pub check_every_hours: i64,
+    /// Daily window for automatic installs in the server's local time
+    /// ("HH:MM"); both empty = any time.
+    pub window_start: String,
+    pub window_end: String,
+}
+
+impl Default for UpdateSettings {
+    fn default() -> Self {
+        UpdateSettings {
+            check: true,
+            auto: false,
+            check_every_hours: 6,
+            window_start: String::new(),
+            window_end: String::new(),
+        }
+    }
+}
+
+impl UpdateSettings {
+    /// The check interval, kept between an hour and a week.
+    pub fn interval_hours(&self) -> i64 {
+        self.check_every_hours.clamp(1, 24 * 7)
+    }
 }

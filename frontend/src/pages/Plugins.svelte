@@ -6,6 +6,8 @@
   import { when } from '../lib/util.js'
 
   let st = $state(null)
+  let upd = $state(null)   // /updates: checker state and schedule
+  let us = $state(null)    // /settings (the updates part is edited here)
   let q = $state('')
   let cat = $state('featured')
   let add = $state([])
@@ -16,7 +18,31 @@
 
   async function load() {
     try { st = await api.get('/plugins') } catch (e) { toastErr(e) }
+    try {
+      upd = await api.get('/updates')
+      if (can.admin()) us = await api.get('/settings')
+    } catch (e) { toastErr(e) }
   }
+  async function checkNow() {
+    busy = true
+    try {
+      upd = await api.post('/updates/check')
+      if (upd.last_error) toast(upd.last_error, 'err', 7000)
+      else toast(upd.update_available ? `Caddy ${upd.latest} is available` : `Caddy ${upd.running || ''} is up to date`)
+      st = await api.get('/plugins'); refreshStatus()
+    } catch (e) { toastErr(e) }
+    busy = false
+  }
+  async function saveUpdates() {
+    busy = true
+    try {
+      us = await api.put('/settings', us)
+      upd = await api.get('/updates')
+      toast('Update settings saved'); refreshStatus()
+    } catch (e) { toastErr(e) }
+    busy = false
+  }
+  const intervals = [[1, 'hour'], [6, '6 hours'], [12, '12 hours'], [24, 'day'], [168, 'week']]
   async function poll() {
     try {
       const j = await api.get('/plugins/job')
@@ -128,6 +154,51 @@
       </div>
     </div>
 
+    <div class="card stack">
+      <div class="card-head">
+        <div>
+          <h2>Updates</h2>
+          <div class="desc">
+            {#if upd?.last_check}Last checked {when(upd.last_check)}{#if upd.next_check} · next {when(upd.next_check)}{/if}{:else}Not checked yet{/if}
+            {#if upd?.last_error}· <span style="color: var(--warn-soft-text)">{upd.last_error}</span>{/if}
+          </div>
+        </div>
+        {#if can.admin()}<button class="btn ghost sm right" onclick={checkNow} disabled={busy}><RefreshCw size={14} /> Check now</button>{/if}
+      </div>
+      {#if upd?.last_auto}
+        {@const a = upd.last_auto}
+        <div class="alert {a.ok ? 'ok' : 'err'}">
+          {#if a.ok}<CircleCheck />{:else}<CircleX />{/if}
+          <span>Automatic update {a.from ? `from ${a.from} ` : ''}to {a.to} {a.ok ? 'installed' : 'failed'} {when(a.at)}{#if !a.ok}: {a.error}{/if}</span>
+        </div>
+      {/if}
+      {#if us}
+        <fieldset class="stack" disabled={!can.admin()}>
+          <label class="check"><input type="checkbox" bind:checked={us.updates.check} /> Check for new Caddy releases in the background</label>
+          {#if us.updates.check}
+            <div class="grid2">
+              <label class="field"><span>Check every</span>
+                <select bind:value={us.updates.check_every_hours}>
+                  {#each intervals as [h, l]}<option value={h}>{l}</option>{/each}
+                  {#if !intervals.some(([h]) => h === us.updates.check_every_hours)}<option value={us.updates.check_every_hours}>{us.updates.check_every_hours} hours</option>{/if}
+                </select></label>
+            </div>
+            <label class="check"><input type="checkbox" bind:checked={us.updates.auto} /> Install new releases automatically</label>
+            <span class="hint">Same path as <strong>Update Caddy</strong>: the new build is downloaded with your plugins, checked, and your configuration is validated against it before it replaces the running one. Caddy restarts for a few seconds. A build that fails any check is discarded, the old one keeps running, and you are notified.</span>
+            {#if us.updates.auto}
+              <div class="grid2">
+                <label class="field"><span>Only between</span><input type="time" bind:value={us.updates.window_start} /></label>
+                <label class="field"><span>and</span><input type="time" bind:value={us.updates.window_end} /></label>
+              </div>
+              <span class="hint">Server local time (set <code>TZ</code> on the container to change it). Leave both empty to install as soon as a release is found.{#if upd && !upd.in_window} Outside the window right now.{/if}</span>
+              {#if upd?.update_available && upd?.auto_blocked}<div class="muted small">Not installing yet: {upd.auto_blocked}.</div>{/if}
+            {/if}
+          {/if}
+          {#if can.admin()}<div class="row"><button class="btn primary sm" onclick={saveUpdates} disabled={busy}>Save</button></div>{/if}
+        </fieldset>
+      {/if}
+    </div>
+
     {#if st.job}
       {@const j = st.job}
       <div class="card stack job" class:running={j.status === 'running'}>
@@ -225,6 +296,7 @@
 {/if}
 
 <style>
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   .status { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; padding: 16px 18px; }
   .s-item { display: flex; align-items: center; gap: 12px; }
   .s-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-soft-text); flex: none; }

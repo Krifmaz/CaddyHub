@@ -221,7 +221,7 @@ impl Manager {
     }
 
     /// Whether the shared bin directory can be written.
-    fn writable(&self) -> Result<()> {
+    pub fn writable(&self) -> Result<()> {
         let dir = self.bin_dir();
         if !dir.is_dir() {
             return Err(anyhow!("{} is not a directory", dir.display()));
@@ -403,10 +403,10 @@ impl Manager {
         })
     }
 
-    /// The newest Caddy release tag (cached for 6 hours).
-    pub async fn latest_caddy(&self) -> String {
+    /// The newest Caddy release tag (cached for 6 hours unless `force`).
+    pub async fn latest_caddy(&self, force: bool) -> String {
         let cached: Option<Latest> = self.store.kv_get_json(LATEST_KEY);
-        if let Some(c) = &cached {
+        if let (false, Some(c)) = (force, &cached) {
             if c.checked_at
                 .is_some_and(|t| Utc::now() - t < chrono::Duration::hours(6))
             {
@@ -451,7 +451,7 @@ impl Manager {
     pub async fn status(&self) -> Status {
         let caps = self.caps();
         let catalog = self.catalog(false).await;
-        let latest = self.latest_caddy().await;
+        let latest = self.latest_caddy(false).await;
         let (supported, reason) = match self.writable() {
             Ok(()) if caps.detected => (true, String::new()),
             Ok(()) => (
