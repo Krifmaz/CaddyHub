@@ -40,6 +40,13 @@ pub struct Config {
     /// (amd64, arm64, ...). Empty = detect from the Caddy binary.
     pub caddy_arch: String,
 
+    /// All-in-one mode: the panel starts and supervises Caddy itself
+    /// instead of talking to a separate container.
+    pub manage_caddy: bool,
+    /// The Caddy binary shipped in the image (used when no custom build is
+    /// installed), in all-in-one mode.
+    pub caddy_image_bin: PathBuf,
+
     /// Public URL of the panel (cookies).
     pub base_url: String,
     /// Trust X-Forwarded-For from Caddy for client IPs.
@@ -102,8 +109,52 @@ fn env_bool(key: &str, def: bool) -> bool {
 
 impl Config {
     /// Reads configuration from the environment.
+    ///
+    /// Defaults depend on the deployment layout. In all-in-one mode
+    /// (CADDYHUB_MANAGE_CADDY=true, the default image) everything lives
+    /// under the data dir and Caddy's admin API is on localhost; in the
+    /// two-container layout the paths are the volumes shared with the caddy
+    /// container.
     pub fn load() -> Config {
-        let caddy_admin = env("CADDYHUB_CADDY_ADMIN", "caddy-admin:2019");
+        let manage_caddy = env_bool("CADDYHUB_MANAGE_CADDY", false);
+        let data_dir = PathBuf::from(env("CADDYHUB_DATA_DIR", "/data"));
+        let d = |rel: &str| data_dir.join(rel).to_string_lossy().replace('\\', "/");
+        let (
+            def_admin,
+            def_bin,
+            def_caddyfile,
+            def_secrets,
+            def_logs,
+            def_cdata,
+            def_cconfig,
+            def_probe,
+            def_upstream,
+        ) = if manage_caddy {
+            (
+                "127.0.0.1:2019".to_string(),
+                d("caddy/bin/caddy"),
+                d("caddy/Caddyfile"),
+                d("caddy/secrets"),
+                d("caddy/logs"),
+                d("caddy-data"),
+                d("caddy-config"),
+                "127.0.0.1:80",
+                "127.0.0.1:8080",
+            )
+        } else {
+            (
+                "caddy-admin:2019".to_string(),
+                "/caddy-bin/caddy".into(),
+                "/etc/caddyhub/Caddyfile".into(),
+                "/run/caddyhub/secrets".into(),
+                "/var/log/caddy".into(),
+                "/caddy-data".into(),
+                "/caddy-config".into(),
+                "caddy:80",
+                "panel:8080",
+            )
+        };
+        let caddy_admin = env("CADDYHUB_CADDY_ADMIN", &def_admin);
         let admin_listen = env("CADDYHUB_ADMIN_LISTEN", &caddy_admin);
         let mut admin_origins = env_list("CADDYHUB_ADMIN_ORIGINS", &caddy_admin);
         if admin_listen.starts_with("unix/") {
@@ -111,23 +162,25 @@ impl Config {
         }
         Config {
             listen: env("CADDYHUB_LISTEN", ":8080"),
-            data_dir: PathBuf::from(env("CADDYHUB_DATA_DIR", "/data")),
+            data_dir,
             secret_key: std::env::var("CADDYHUB_SECRET_KEY").unwrap_or_default(),
             secret_key_file: std::env::var("CADDYHUB_SECRET_KEY_FILE").unwrap_or_default(),
 
-            caddy_bin: PathBuf::from(env("CADDYHUB_CADDY_BIN", "/caddy-bin/caddy")),
+            caddy_bin: PathBuf::from(env("CADDYHUB_CADDY_BIN", &def_bin)),
             caddy_admin,
             admin_listen,
             admin_origins,
-            caddyfile_path: PathBuf::from(env("CADDYHUB_CADDYFILE", "/etc/caddyhub/Caddyfile")),
-            secrets_dir: PathBuf::from(env("CADDYHUB_SECRETS_DIR", "/run/caddyhub/secrets")),
-            log_dir: env("CADDYHUB_LOG_DIR", "/var/log/caddy"),
-            caddy_data_dir: PathBuf::from(env("CADDYHUB_CADDY_DATA", "/caddy-data")),
-            caddy_config_dir: PathBuf::from(env("CADDYHUB_CADDY_CONFIG", "/caddy-config")),
+            caddyfile_path: PathBuf::from(env("CADDYHUB_CADDYFILE", &def_caddyfile)),
+            secrets_dir: PathBuf::from(env("CADDYHUB_SECRETS_DIR", &def_secrets)),
+            log_dir: env("CADDYHUB_LOG_DIR", &def_logs),
+            caddy_data_dir: PathBuf::from(env("CADDYHUB_CADDY_DATA", &def_cdata)),
+            caddy_config_dir: PathBuf::from(env("CADDYHUB_CADDY_CONFIG", &def_cconfig)),
             import_caddyfile: PathBuf::from(env("CADDYHUB_IMPORT_CADDYFILE", "/import/Caddyfile")),
-            probe_addrs: env_list("CADDYHUB_PROBE", "caddy:80"),
-            panel_upstream: env("CADDYHUB_PANEL_UPSTREAM", "panel:8080"),
+            probe_addrs: env_list("CADDYHUB_PROBE", def_probe),
+            panel_upstream: env("CADDYHUB_PANEL_UPSTREAM", def_upstream),
             caddy_arch: env("CADDYHUB_CADDY_ARCH", ""),
+            manage_caddy,
+            caddy_image_bin: PathBuf::from(env("CADDYHUB_CADDY_IMAGE_BIN", "/usr/bin/caddy")),
 
             base_url: std::env::var("CADDYHUB_BASE_URL")
                 .unwrap_or_default()

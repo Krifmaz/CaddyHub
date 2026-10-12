@@ -50,8 +50,9 @@ def sha256(b):
     return hashlib.sha256(b).hexdigest()
 
 
-def fetch_base(repo, tag, arch="amd64", cache="base-cache"):
+def fetch_base(repo, tag, arch="amd64", cache=None):
     """Returns (config_dict, [uncompressed layer tar bytes]) for a Docker Hub image."""
+    cache = cache or os.environ.get("MKIMAGE_CACHE") or os.path.join(os.path.expanduser("~"), "caddyhub-build", "base-cache")
     os.makedirs(cache, exist_ok=True)
     tok = hub_token(repo)
     h = {"Authorization": f"Bearer {tok}", "Accept": ACCEPT}

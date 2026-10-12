@@ -21,28 +21,25 @@ It also manages Caddy itself: install plugins and update Caddy from the UI, keep
 git clone https://github.com/Krifmaz/CaddyHub.git
 cd CaddyHub
 cp .env.example .env          # optional, but set CADDYHUB_SECRET_KEY (openssl rand -base64 32)
-docker compose up -d --build
+docker compose up -d
 ```
 
 Open `http://<your-server>:8080`, create your admin account, and follow the two-step setup (certificate email, optionally import your existing Caddyfile).
 
-The stack runs two containers:
+One container runs everything: the panel on port 8080 starts Caddy (ports 80/443) inside the same container, keeps it running, and validates every config with the exact binary that serves traffic. Caddy's admin API only listens on localhost inside the container. Certificates, the database and the Caddy binary live in the single `data` volume; to keep certificates from a previous Caddy, mount its data volume at `/data/caddy-data` (see the comments in [docker-compose.yml](docker-compose.yml)).
 
-| Container | What it does |
-|-----------|--------------|
-| `caddy`   | Caddy built with xcaddy plus your plugins. Serves ports 80/443. Its admin API only listens on an internal Docker network, never on the host. |
-| `panel`   | CaddyHub (UI + API) on port 8080. Writes the Caddyfile to a shared volume and validates with the *same* Caddy binary that serves traffic. |
+Prefer Caddy in its own container? [docker-compose.split.yml](docker-compose.split.yml) runs the panel and a separate Caddy image (ports 80/443) that talk over an internal network; it needs the `caddyhub-caddy` image as well.
 
 > Tip: to put the panel itself behind HTTPS, set **Settings → Advanced → Serve CaddyHub itself at** (e.g. `caddyhub.example.com`), apply, then set `CADDYHUB_BASE_URL=https://caddyhub.example.com` and `CADDYHUB_TRUST_PROXY_HEADERS=true` in `.env`. After that you can stop publishing port 8080.
 
 ### Portainer / prebuilt images
 
-Every push to `main` publishes a ready-made panel image (amd64; arm64 on request from the Actions tab) to GitHub Container Registry, and the Caddy image is rebuilt whenever `caddy/` changes:
+Every push to `main` publishes a ready-made image (amd64; arm64 on request from the Actions tab) to GitHub Container Registry:
 
-- `ghcr.io/krifmaz/caddyhub:latest`: the panel
-- `ghcr.io/krifmaz/caddyhub-caddy:latest`: Caddy with the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
+- `ghcr.io/krifmaz/caddyhub:latest`: the panel with Caddy built in, including the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
+- `ghcr.io/krifmaz/caddyhub-caddy:latest`: the separate Caddy image for the two-container layout (rebuilt when `caddy/` changes)
 
-Use [docker-compose.portainer.yml](docker-compose.portainer.yml) as the stack. It only pulls images, so it works with Portainer's remote agents, which can't build. If the images are private, first add `ghcr.io` under **Registries** in Portainer, with your GitHub username and a token that has the `read:packages` scope. Anything the image lacks can be added later from **Plugins** in the UI, no rebuild needed.
+Paste [docker-compose.yml](docker-compose.yml) into a Portainer stack (drop the `build:` line). It only pulls images, so it works with Portainer's remote agents, which can't build. Anything the image lacks can be added later from **Plugins** in the UI, no rebuild needed.
 
 ## Using it
 
@@ -81,7 +78,7 @@ Create least-privilege tokens: DNS edit on the zone you use, nothing more. Each 
 
 ### How plugin installs work
 
-Caddy plugins are compiled in, so a plugin install means a new binary. The panel downloads one with your selection into the `caddy-bin` volume both containers share, runs it to confirm the version and modules, validates the current config with it, and only then renames it to `caddy-custom` and asks Caddy to exit. The Caddy container's entrypoint restarts with the custom build when it exists and runs; a custom build that dies right after starting is set aside and the image's Caddy takes over, so the container never gets stuck. Every install also moves Caddy to the latest release (that is how the download service works); plugins are fetched at their newest version.
+Caddy plugins are compiled in, so a plugin install means a new binary. The panel downloads one with your selection, runs it to confirm the version and modules, validates the current config with it, and only then installs it as `caddy-custom` next to the running binary and asks Caddy to exit. In the all-in-one image the panel itself restarts Caddy with the custom build; in the two-container layout the Caddy container's entrypoint does the same from the shared `caddy-bin` volume. Either way, a custom build that dies right after starting is set aside and the image's Caddy takes over, so you are never left without Caddy. Every install also moves Caddy to the latest release (that is how the download service works); plugins are fetched at their newest version.
 
 ### Upgrading Caddy
 
@@ -143,6 +140,7 @@ backend/src/
   importer/     Caddyfile and Caddy JSON → model (keeps unknown blocks raw)
   registry/     DNS providers + features mapped to Caddy modules/versions
   plugins.rs    plugin manager: download service, verify, swap, restart
+  supervisor.rs all-in-one mode: runs Caddy as a child process and keeps it up
   ddns.rs       dynamic DNS status (public IP vs. records)
   server/       REST API + auth (sessions, CSRF, TOTP, API keys, roles)
   caddy/        caddy CLI runner + admin API client

@@ -1,4 +1,8 @@
-# CaddyHub panel: web UI + API (Caddy runs in its own container, see caddy/).
+# CaddyHub, all in one: the panel plus Caddy in a single image. The panel
+# starts Caddy and keeps it running (CADDYHUB_MANAGE_CADDY=true). Set that
+# to false to use this image as the panel of the two-container layout
+# (docker-compose.split.yml).
+#
 # Build stages run on the build machine's architecture and cross-compile
 # with cargo-zigbuild (zig as the C compiler/linker), so arm64 images don't
 # need emulation.
@@ -31,11 +35,23 @@ COPY --from=ui /src/backend/ui/dist ./ui/dist
 RUN CADDYHUB_VERSION="$VERSION" cargo zigbuild --release --locked --target "$(cat /target)" \
     && cp "target/$(cat /target)/release/caddyhub" /caddyhub
 
+# Caddy with the default plugins, from the official download service (what
+# `caddy add-package` uses). More plugins can be added later from the panel.
+FROM --platform=$BUILDPLATFORM alpine:3 AS caddy
+ARG TARGETARCH
+ARG CADDY_PLUGINS="github.com/caddy-dns/cloudflare github.com/caddy-dns/porkbun github.com/caddy-dns/duckdns github.com/caddy-dns/namecheap github.com/caddy-dns/route53 github.com/caddy-dns/digitalocean github.com/caddy-dns/hetzner github.com/caddy-dns/desec github.com/caddy-dns/ovh github.com/caddy-dns/gandi github.com/caddy-dns/acmedns github.com/mholt/caddy-ratelimit"
+RUN apk add --no-cache curl && q=""; for p in $CADDY_PLUGINS; do q="$q&p=$p"; done \
+    && curl -fsSL --retry 3 -o /caddy "https://caddyserver.com/api/download?os=linux&arch=${TARGETARCH}${q}" \
+    && chmod 0755 /caddy && test "$(stat -c %s /caddy)" -gt 10000000
+
 FROM alpine:3
-RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 1000 -h /data caddyhub
+RUN apk add --no-cache ca-certificates tzdata mailcap
 COPY --from=build /caddyhub /usr/local/bin/caddyhub
-USER caddyhub
+COPY --from=caddy /caddy /usr/bin/caddy
+ENV CADDYHUB_MANAGE_CADDY=true \
+    XDG_DATA_HOME=/data/caddy-data \
+    XDG_CONFIG_HOME=/data/caddy-config
 VOLUME /data
-EXPOSE 8080
+EXPOSE 80 443 443/udp 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD ["caddyhub", "-healthcheck"]
 ENTRYPOINT ["caddyhub"]

@@ -5,3 +5,4 @@ backend/ui/dist/
 .env
 *.exe
 /dist/
+/base-cache/

@@ -1,6 +1,8 @@
-# CaddyHub using prebuilt images (for Portainer, or any host that can't build).
-# Paste this into a Portainer stack. Set CADDYHUB_SECRET_KEY under
-# "Environment variables" (generate one with: openssl rand -base64 32).
+# CaddyHub, two-container layout: the panel and Caddy run in separate
+# containers from prebuilt images, talking over an internal network. The
+# default (docker-compose.yml) runs both in one container; use this one if
+# you want Caddy isolated from the panel.
+# Set CADDYHUB_SECRET_KEY under "Environment variables" (openssl rand -base64 32).
 #
 # Upstreams on other stacks: attach their network to the caddy service below
 # (see the commented "external" network), then use container names such as
@@ -36,6 +38,7 @@ services:
     ports:
       - "${CADDYHUB_PORT:-8080}:8080"
     environment:
+      CADDYHUB_MANAGE_CADDY: "false"
       CADDYHUB_SECRET_KEY: ${CADDYHUB_SECRET_KEY:-}
       CADDYHUB_CADDY_ADMIN: caddy-admin:2019
       CADDYHUB_CADDY_BIN: /caddy-bin/caddy

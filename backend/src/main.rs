@@ -20,6 +20,7 @@ mod scan;
 mod secrets;
 mod server;
 mod store;
+mod supervisor;
 mod web;
 
 use anyhow::{Context, Result};
@@ -146,6 +147,31 @@ async fn run(cfg: config::Config) -> Result<()> {
         );
     }
 
+    // One signal for everything: the HTTP server and the Caddy supervisor.
+    let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        let _ = stop_tx.send(true);
+    });
+
+    // All-in-one mode: start Caddy ourselves and keep it running.
+    if cfg.manage_caddy {
+        let managed = supervisor::Managed {
+            image_bin: cfg.caddy_image_bin.clone(),
+            caddy_bin: cfg.caddy_bin.clone(),
+            caddyfile: cfg.caddyfile_path.clone(),
+            admin_listen: cfg.admin_listen.clone(),
+            admin_origins: cfg.admin_origins.clone(),
+            secrets_dir: cfg.secrets_dir.clone(),
+            log_dir: std::path::PathBuf::from(&cfg.log_dir),
+            data_dir: cfg.caddy_data_dir.clone(),
+            config_dir: cfg.caddy_config_dir.clone(),
+        };
+        managed.prepare().context("prepare caddy directories")?;
+        bootstrap_managed_config(&managed, &state).await;
+        tokio::spawn(managed.run(state.admin.clone(), stop_rx.clone()));
+    }
+
     // Background jobs: Caddy capability detection and session cleanup.
     {
         let (runner, caps, store) = (runner.clone(), caps.clone(), store.clone());
@@ -191,15 +217,76 @@ async fn run(cfg: config::Config) -> Result<()> {
         .with_context(|| format!("listen on {addr}"))?;
     tracing::info!(addr = %addr, version = VERSION, data = %cfg.data_dir.display(), ui = web::available(), "CaddyHub listening");
     let app = server::router(state);
+    let mut stop = stop_rx;
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown_signal())
+    .with_graceful_shutdown(async move {
+        while !*stop.borrow() {
+            if stop.changed().await.is_err() {
+                break;
+            }
+        }
+    })
     .await
     .context("http server")?;
+    // Give the supervisor a moment to stop Caddy gracefully.
+    tokio::time::sleep(Duration::from_millis(500)).await;
     tracing::info!("shut down");
     Ok(())
+}
+
+/// Before the first managed start of Caddy: if the persisted Caddyfile is
+/// missing or was written for the two-container layout (another admin
+/// address), regenerate it from the model with the binary that is about to
+/// run, so sites come up immediately instead of waiting for an apply.
+async fn bootstrap_managed_config(m: &supervisor::Managed, state: &server::AppState) {
+    let current = std::fs::read_to_string(&m.caddyfile).unwrap_or_default();
+    if current.contains(&m.admin_listen) && current.trim() != m.bootstrap_caddyfile().trim() {
+        return; // already ours
+    }
+    if state.store.sites().map(|s| s.is_empty()).unwrap_or(true) && state.store.last_good().is_err()
+    {
+        return; // fresh install: the minimal config is right
+    }
+    let bin = m.choose().await;
+    let runner = caddy::Runner::new(&bin);
+    match runner.capabilities().await {
+        Ok(c) => {
+            if let Ok(mut w) = state.caps.write() {
+                *w = c;
+            }
+        }
+        Err(e) => {
+            tracing::warn!(err = %e, "cannot inspect the Caddy binary; starting with the minimal config");
+            return;
+        }
+    }
+    match state.pipeline.plan_with(&runner).await {
+        Ok(plan) if plan.valid => {
+            match std::fs::write(&m.caddyfile, &plan.caddyfile) {
+                Ok(()) => {
+                    tracing::info!("regenerated the Caddyfile from the saved sites for this layout")
+                }
+                Err(e) => tracing::warn!(err = %e, "cannot write the regenerated Caddyfile"),
+            }
+            for w in plan.warnings {
+                tracing::warn!("{w}");
+            }
+        }
+        Ok(plan) => {
+            let errs: Vec<String> = plan.errors.iter().map(|e| e.text.clone()).collect();
+            tracing::warn!(
+                stage = plan.stage,
+                "saved config does not validate; starting with the minimal config: {}",
+                errs.join("; ")
+            );
+        }
+        Err(e) => {
+            tracing::warn!(err = %e, "cannot regenerate the config; starting with the minimal config")
+        }
+    }
 }
 
 /// Turns ":8080" (Go style) into "0.0.0.0:8080".
