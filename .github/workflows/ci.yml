@@ -58,7 +58,18 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Test
         working-directory: backend
-        run: cargo test
+        run: |
+          set -o pipefail
+          cargo test 2>&1 | tee test.log
+      - name: Report failed tests
+        # Annotations are readable without a GitHub login; the full log is not.
+        if: failure()
+        working-directory: backend
+        run: |
+          grep -E "^test .*FAILED|^failures:|panicked at|^  left:|^ right:|assertion|^error(\[|:)" -A 2 test.log | head -80 | while IFS= read -r l; do
+            printf '::error::%s\n' "$l"
+          done
+          { echo "### Failed tests"; echo '```'; grep -E "^test .*FAILED|panicked at|^  left:|^ right:|assertion" -A 2 test.log | head -80; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     name: Web UI build
