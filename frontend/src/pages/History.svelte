@@ -32,7 +32,10 @@
     diff = await api.get(`/versions/diff?a=${open.id}&b=0`).catch((e) => { toastErr(e); return null })
   }
   async function rollback() {
-    if (!confirm(`Restore version ${open.id}? Caddy will run exactly that Caddyfile again (it's validated first), and the sites and settings in CaddyHub go back to that version too. Unapplied edits are lost.\n\n(Versions applied by an older CaddyHub have no saved sites; for those only the Caddyfile is re-applied.)`)) return
+    const msg = open.snapshot
+      ? `Restore version ${open.id}? Caddy will run exactly that Caddyfile again (it's validated first), and the sites and settings in CaddyHub go back to that version too. Unapplied edits are lost.`
+      : `Re-apply version ${open.id}? Caddy will run exactly that Caddyfile again (it's validated first).\n\nThis version was applied before CaddyHub saved sites with versions, so your sites and settings are not changed; the next normal apply will use them again.`
+    if (!confirm(msg)) return
     busy = true
     try {
       const r = await api.post(`/versions/${open.id}/rollback`)
@@ -80,6 +83,9 @@
     <div class="row small">
       <span class="badge {badge[open.status] || ''}">{open.status.replace('_', ' ')}</span>
       <span class="muted">{when(open.created_at)} · {open.user} · Caddy {open.caddy_version || '?'}</span>
+      {#if open.good}
+        {#if open.snapshot}<span class="badge accent" title="Restoring this version also brings back its sites and settings">sites &amp; settings saved</span>{:else}<span class="badge" title="Applied before CaddyHub saved sites with versions; only the Caddyfile can be re-applied">Caddyfile only</span>{/if}
+      {/if}
     </div>
     {#if open.message}<p class="small">{open.message}</p>{/if}
     <div class="tabs">

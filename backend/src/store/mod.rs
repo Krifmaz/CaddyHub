@@ -742,6 +742,7 @@ impl Store {
         } else {
             String::new()
         };
+        let snapshot: i64 = row.get(next())?;
         Ok(ConfigVersion {
             id,
             created_at,
@@ -752,6 +753,7 @@ impl Store {
             good: good == 1,
             caddy_version,
             model,
+            snapshot: snapshot == 1,
         })
     }
 
@@ -759,7 +761,7 @@ impl Store {
     pub fn versions(&self, limit: i64) -> Result<Vec<ConfigVersion>> {
         let limit = if limit <= 0 { 100 } else { limit };
         let conn = self.conn();
-        let mut st = conn.prepare("SELECT id, created_at, user, status, message, good, caddy_version FROM config_versions ORDER BY id DESC LIMIT ?")?;
+        let mut st = conn.prepare("SELECT id, created_at, user, status, message, good, caddy_version, (model <> '') FROM config_versions ORDER BY id DESC LIMIT ?")?;
         let rows = st.query_map(params![limit], |r| Self::scan_version(r, false))?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
@@ -768,7 +770,7 @@ impl Store {
     pub fn version(&self, id: i64) -> Result<ConfigVersion> {
         self.conn()
             .query_row(
-                "SELECT id, created_at, user, caddyfile, status, message, good, caddy_version, model FROM config_versions WHERE id = ?",
+                "SELECT id, created_at, user, caddyfile, status, message, good, caddy_version, model, (model <> '') FROM config_versions WHERE id = ?",
                 params![id],
                 |r| Self::scan_version(r, true),
             )

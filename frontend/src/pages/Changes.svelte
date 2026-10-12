@@ -23,8 +23,12 @@
     loading = false
   }
   onMount(load)
-  // The version Caddy ran before the last apply: what "Revert" goes back to.
-  const previous = $derived(goods.length > 1 ? goods[1] : null)
+  // Discard needs the running version's snapshot; Revert needs the previous
+  // version's. Versions applied before snapshots existed have none.
+  const current = $derived(goods[0] || null)
+  const canDiscard = $derived(!!current?.snapshot)
+  const previous = $derived(goods.length > 1 && goods[1].snapshot ? goods[1] : null)
+  const noSnapshotYet = $derived(!!current && !current.snapshot)
 
   async function discard() {
     if (!confirm('Throw away every change made since the last apply? Sites, domains, DNS accounts, snippets, raw blocks and settings go back to what Caddy is running now. This cannot be undone.')) return
@@ -118,7 +122,7 @@
 
     {#if can.edit()}
       <div class="row tools">
-        {#if plan.changed}
+        {#if plan.changed && canDiscard}
           <button class="btn danger" onclick={discard} disabled={applying} title="Put sites, domains, snippets, raw blocks and settings back to what was last applied"><Trash2 size={15} /> Discard changes</button>
         {/if}
         {#if previous}
@@ -127,7 +131,14 @@
         {#if can.admin()}
           <button class="btn" onclick={backup} disabled={applying} title="Download an encrypted backup of the whole configuration"><Download size={15} /> Backup</button>
         {/if}
-        <span class="hint grow">Discard throws away unapplied edits. Revert re-applies the previous version and restores its sites and settings. Backup downloads everything except users and API keys, encrypted with the panel's secret key; restore it from Settings → Advanced.</span>
+        <span class="hint grow">
+          {#if noSnapshotYet}
+            Version #{current.id} was applied before CaddyHub kept a copy of the sites and settings with each version, so Discard and Revert are not available yet. They work from the next apply on.
+          {:else}
+            Discard throws away unapplied edits. Revert re-applies the previous version and restores its sites and settings.
+          {/if}
+          Backup downloads everything except users and API keys, encrypted with the panel's secret key; restore it from Settings → Advanced.
+        </span>
       </div>
     {/if}
 

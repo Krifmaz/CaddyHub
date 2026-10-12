@@ -630,6 +630,8 @@ pub struct ConfigVersion {
     /// internal, never sent to the UI.
     #[serde(skip)]
     pub model: String,
+    /// Whether such a snapshot exists (Discard / Revert can use it).
+    pub snapshot: bool,
 }
 
 /// Caddy update checker and automatic updates (see updates.rs).
