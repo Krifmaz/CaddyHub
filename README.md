@@ -39,7 +39,7 @@ Every push to `main` publishes a ready-made image (amd64; arm64 on request from 
 - `ghcr.io/krifmaz/caddyhub:latest`: the panel with Caddy built in, including the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
 - `ghcr.io/krifmaz/caddyhub-caddy:latest`: the separate Caddy image for the two-container layout (rebuilt when `caddy/` changes)
 
-Version tags (`v0.3.0`) additionally publish `ghcr.io/krifmaz/caddyhub:0.3.0` and appear under [Releases](https://github.com/Krifmaz/CaddyHub/releases) with notes; `:latest` always follows `main`.
+Version tags (`v0.4.0`) additionally publish `ghcr.io/krifmaz/caddyhub:0.4.0` and appear under [Releases](https://github.com/Krifmaz/CaddyHub/releases) with notes; `:latest` always follows `main`.
 
 Paste [docker-compose.yml](docker-compose.yml) into a Portainer stack (drop the `build:` line). It only pulls images, so it works with Portainer's remote agents, which can't build. Anything the image lacks can be added later from **Plugins** in the UI, no rebuild needed.
 
