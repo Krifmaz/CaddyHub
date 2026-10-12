@@ -105,8 +105,7 @@ pub fn write_private(path: &Path, data: &[u8]) -> std::io::Result<()> {
             .truncate(true)
             .mode(0o600)
             .open(path)?;
-        f.write_all(data)?;
-        return Ok(());
+        f.write_all(data)
     }
     #[cfg(not(unix))]
     std::fs::write(path, data)
