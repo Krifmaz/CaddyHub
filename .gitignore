@@ -4,3 +4,4 @@ backend/ui/dist/
 /data/
 .env
 *.exe
+/dist/
