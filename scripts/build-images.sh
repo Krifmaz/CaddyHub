@@ -24,15 +24,29 @@ mkdir -p "$WORK/out" "$WORK/bin"
 # libunwind, the way cargo-zigbuild does; build scripts and proc macros are
 # host binaries, so the host needs a linker too.
 write_wrappers() {
+	# cc-rs passes --target=<rust triple>, which zig rejects; the -target
+	# given here wins instead.
+	# For musl, rustc also passes its own C runtime start files; zig supplies
+	# those itself, so they (and -nostartfiles) are dropped, as cargo-zigbuild does.
 	cat > "$WORK/bin/zigcc-musl" <<EOF
 #!/usr/bin/env bash
-exec "$ZIG" cc -target x86_64-linux-musl "\$@"
+args=()
+for a in "\$@"; do
+	case "\$a" in
+		--target=*) ;;
+		*/self-contained/*crt*.o) ;;
+		-nostartfiles) ;;
+		*) args+=("\$a") ;;
+	esac
+done
+exec "$ZIG" cc -target x86_64-linux-musl "\${args[@]}"
 EOF
 	cat > "$WORK/bin/zigcc-gnu" <<EOF
 #!/usr/bin/env bash
 args=()
 for a in "\$@"; do
 	case "\$a" in
+		--target=*) ;;
 		-lgcc_s) args+=(-lunwind) ;;
 		-lgcc) ;;
 		*) args+=("\$a") ;;
