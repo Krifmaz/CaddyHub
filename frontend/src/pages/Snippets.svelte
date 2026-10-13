@@ -76,7 +76,7 @@
   <div class="stack">
     {#if can.admin()}<div><button class="btn primary" onclick={() => open('block')}><Plus size={16} /> New raw block</button></div>{/if}
     {#if blocks.length === 0}
-      <div class="card empty"><div class="icon-wrap"><FileCode size={22} /></div><p>Raw blocks hold top-level Caddyfile text, e.g. sites using features CaddyHub doesn't model. Imported blocks it couldn't understand also land here, untouched.</p></div>
+      <div class="card empty"><div class="icon-wrap"><FileCode size={22} /></div><p>Raw blocks hold top-level Caddyfile text, e.g. sites using features Caddymium doesn't model. Imported blocks it couldn't understand also land here, untouched.</p></div>
     {/if}
     {#each blocks as b}
       <div class="card stack">

@@ -42,7 +42,7 @@
   }
   async function revert() {
     if (!previous) return
-    if (!confirm(`Revert the last apply? Caddy goes back to version #${previous.id} (${when(previous.created_at)}), and the sites and settings in CaddyHub with it. The current unapplied edits are lost.`)) return
+    if (!confirm(`Revert the last apply? Caddy goes back to version #${previous.id} (${when(previous.created_at)}), and the sites and settings in Caddymium with it. The current unapplied edits are lost.`)) return
     applying = true
     result = null
     try {
@@ -56,8 +56,8 @@
     try {
       const env = await api.get('/backup')
       const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
-      download(`caddyhub-backup-${stamp}.json`, JSON.stringify(env, null, 2))
-      toast('Backup downloaded. It is encrypted with your CADDYHUB_SECRET_KEY; keep the key with it.')
+      download(`caddymium-backup-${stamp}.json`, JSON.stringify(env, null, 2))
+      toast('Backup downloaded. It is encrypted with your CADDYMIUM_SECRET_KEY; keep the key with it.')
     } catch (e) { toastErr(e) }
   }
 
@@ -82,7 +82,7 @@
 <div class="page-head">
   <div>
     <h1>Review & apply</h1>
-    <div class="sub">CaddyHub writes the Caddyfile, Caddy checks it, you see exactly what changes. If Caddy isn't healthy after applying, the previous config is restored automatically.</div>
+    <div class="sub">Caddymium writes the Caddyfile, Caddy checks it, you see exactly what changes. If Caddy isn't healthy after applying, the previous config is restored automatically.</div>
   </div>
   <button class="btn right" onclick={load} disabled={loading}><RefreshCw size={15} class={loading ? 'spin' : ''} /> Refresh</button>
 </div>
@@ -133,7 +133,7 @@
         {/if}
         <span class="hint grow">
           {#if noSnapshotYet}
-            Version #{current.id} was applied before CaddyHub kept a copy of the sites and settings with each version, so Discard and Revert are not available yet. They work from the next apply on.
+            Version #{current.id} was applied before Caddymium kept a copy of the sites and settings with each version, so Discard and Revert are not available yet. They work from the next apply on.
           {:else}
             Discard throws away unapplied edits. Revert re-applies the previous version and restores its sites and settings.
           {/if}

@@ -43,7 +43,7 @@ pub async fn spa(uri: Uri) -> Response {
         None => (
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-            "CaddyHub API is running, but the web UI was not built into this binary.\nBuild it with: cd frontend && npm ci && npm run build\n",
+            "Caddymium API is running, but the web UI was not built into this binary.\nBuild it with: cd frontend && npm ci && npm run build\n",
         )
             .into_response(),
     }

@@ -306,7 +306,7 @@ impl Pipeline {
         }
 
         let tmp_logs = tempfile::Builder::new()
-            .prefix("caddyhub-validate-logs-")
+            .prefix("caddymium-validate-logs-")
             .tempdir()?;
         let tmp = secrets::to_slash(tmp_logs.path());
         let vtext = match input {

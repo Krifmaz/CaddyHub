@@ -54,7 +54,7 @@
   <div class="page-head">
     <div>
       <h1>Import</h1>
-      <div class="sub">Bring in your existing Caddy config. What CaddyHub understands becomes editable sites; everything else is kept, nothing is dropped silently. Nothing goes live until you apply.</div>
+      <div class="sub">Bring in your existing Caddy config. What Caddymium understands becomes editable sites; everything else is kept, nothing is dropped silently. Nothing goes live until you apply.</div>
     </div>
   </div>
 {/if}
@@ -102,7 +102,7 @@
       </div>
 
       {#if preview.verify?.checked && preview.verify.differences.length === 0}
-        <div class="alert ok"><ShieldCheck /><span><strong>{preview.verify.sites} site(s) imported, 0 differences.</strong> CaddyHub regenerated the config, Caddy checked it, and every host behaves the same as before.</span></div>
+        <div class="alert ok"><ShieldCheck /><span><strong>{preview.verify.sites} site(s) imported, 0 differences.</strong> Caddymium regenerated the config, Caddy checked it, and every host behaves the same as before.</span></div>
       {:else if preview.verify?.checked}
         <div class="alert warn"><TriangleAlert /><span><strong>{preview.verify.differences.length} difference(s) after regeneration:</strong>
           <ul>{#each preview.verify.differences as d}<li class="mono small">{d}</li>{/each}</ul></span></div>

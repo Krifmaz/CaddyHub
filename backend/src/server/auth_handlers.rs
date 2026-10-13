@@ -75,7 +75,7 @@ pub async fn setup(
         st.limiter().fail(&key);
         return Err(ApiError(
             StatusCode::FORBIDDEN,
-            "wrong setup token (see CADDYHUB_SETUP_TOKEN)".into(),
+            "wrong setup token (see CADDYMIUM_SETUP_TOKEN)".into(),
         ));
     }
     let username = req.username.trim().to_string();
@@ -325,7 +325,7 @@ pub async fn totp_begin(
         .kv_set_json(&format!("totp_pending:{}", p.user.id), &enc)?;
     Ok(json(
         StatusCode::OK,
-        &serde_json::json!({"secret": secret, "uri": auth::totp_uri("CaddyHub", &p.user.username, &secret)}),
+        &serde_json::json!({"secret": secret, "uri": auth::totp_uri("Caddymium", &p.user.username, &secret)}),
     ))
 }
 

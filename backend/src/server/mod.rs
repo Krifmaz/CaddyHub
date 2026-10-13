@@ -1,4 +1,4 @@
-//! CaddyHub's HTTP layer: a JSON REST API under /api and the embedded web
+//! Caddymium's HTTP layer: a JSON REST API under /api and the embedded web
 //! UI on every other path.
 //!
 //! Authentication uses an opaque session cookie (only its SHA-256 is stored)
@@ -41,14 +41,14 @@ use crate::registry::Capabilities;
 use crate::store::{self, Session, Store, User};
 use crate::updates;
 
-pub const COOKIE_NAME: &str = "caddyhub_session";
+pub const COOKIE_NAME: &str = "caddymium_session";
 const SESSION_ABSOLUTE: chrono::Duration = chrono::Duration::days(7);
 const MAX_BODY: usize = 4 << 20;
 
 /// Files the panel can import from without pasting.
 #[derive(Debug, Clone, Default)]
 pub struct ImportPaths {
-    /// autosave.json saved before CaddyHub first started Caddy
+    /// autosave.json saved before Caddymium first started Caddy
     pub autosave_backup: PathBuf,
     /// Caddy's live autosave.json
     pub autosave: PathBuf,

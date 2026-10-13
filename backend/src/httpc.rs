@@ -14,7 +14,7 @@ pub fn init_tls() {
     });
 }
 
-pub const USER_AGENT: &str = concat!("CaddyHub/", env!("CARGO_PKG_VERSION"));
+pub const USER_AGENT: &str = concat!("Caddymium/", env!("CARGO_PKG_VERSION"));
 
 /// A client builder with the panel's defaults.
 pub fn builder() -> reqwest::ClientBuilder {

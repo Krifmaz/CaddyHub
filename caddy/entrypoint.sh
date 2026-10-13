@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prepares the volumes shared with the CaddyHub panel, then runs Caddy from
+# Prepares the volumes shared with the Caddymium panel, then runs Caddy from
 # the Caddyfile the panel maintains.
 #
 # The panel's plugin manager can drop a custom Caddy build into the shared
@@ -26,14 +26,17 @@ if [ -d "$BIN_DIR" ]; then
 fi
 
 # Before Caddy starts (and overwrites autosave.json), keep one copy of the
-# config a previous Caddy left behind so CaddyHub can offer to import it.
+# config a previous Caddy left behind so Caddymium can offer to import it.
 CFG_DIR="${XDG_CONFIG_HOME:-/config}/caddy"
 mkdir -p "$CFG_DIR"
 chmod 0755 "$CFG_DIR"
-if [ -s "$CFG_DIR/autosave.json" ] && [ ! -e "$CFG_DIR/autosave.pre-caddyhub.json" ] \
+BACKUP="$CFG_DIR/autosave.pre-caddymium.json"
+# Installs from before the rename keep their copy under the old name.
+[ -e "$CFG_DIR/autosave.pre-caddyhub.json" ] && BACKUP="$CFG_DIR/autosave.pre-caddyhub.json"
+if [ -s "$CFG_DIR/autosave.json" ] && [ ! -e "$BACKUP" ] \
 	&& ! grep -q "$ADMIN" "$CFG_DIR/autosave.json"; then
-	cp "$CFG_DIR/autosave.json" "$CFG_DIR/autosave.pre-caddyhub.json"
-	chmod 0644 "$CFG_DIR/autosave.pre-caddyhub.json"
+	cp "$CFG_DIR/autosave.json" "$BACKUP"
+	chmod 0644 "$BACKUP"
 fi
 
 # First start: a minimal config that only enables the admin API on the
@@ -75,7 +78,7 @@ while :; do
 	if [ -d "$BIN_DIR" ]; then
 		cp "$BIN" "$BIN_DIR/caddy.tmp" && mv -f "$BIN_DIR/caddy.tmp" "$BIN_DIR/caddy" && chmod 0755 "$BIN_DIR/caddy"
 	fi
-	echo "caddyhub-entrypoint: starting $BIN ($("$BIN" version 2>/dev/null | cut -d' ' -f1))" >&2
+	echo "caddymium-entrypoint: starting $BIN ($("$BIN" version 2>/dev/null | cut -d' ' -f1))" >&2
 	start=$(date +%s)
 	"$BIN" run --config "$CADDYFILE" --adapter caddyfile &
 	child=$!
@@ -84,11 +87,11 @@ while :; do
 	child=""
 	now=$(date +%s)
 	if [ "$BIN" = "$CUSTOM" ] && [ "$rc" -ne 0 ] && [ $((now - start)) -lt 20 ]; then
-		echo "caddyhub-entrypoint: custom build exited with $rc within 20s; falling back to the image's Caddy" >&2
+		echo "caddymium-entrypoint: custom build exited with $rc within 20s; falling back to the image's Caddy" >&2
 		mv -f "$CUSTOM" "$CUSTOM.broken"
 	fi
 	if [ "$rc" -ne 0 ]; then
 		sleep 2
 	fi
-	echo "caddyhub-entrypoint: caddy exited ($rc); restarting" >&2
+	echo "caddymium-entrypoint: caddy exited ($rc); restarting" >&2
 done

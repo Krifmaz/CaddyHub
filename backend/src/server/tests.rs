@@ -471,7 +471,7 @@ async fn backup_restore_and_discard() {
     // Download: metadata in the clear, the rest sealed.
     let (code, env) = admin.call("GET", "/api/backup", None).await;
     assert_eq!(code, 200, "{env}");
-    assert_eq!(env["format"], "caddyhub-backup");
+    assert_eq!(env["format"], "caddymium-backup");
     assert_eq!(env["contents"]["sites"], 1);
     assert!(!env.to_string().contains("app.example.com"));
 

@@ -1,7 +1,7 @@
-# CaddyHub, all in one: the panel runs Caddy inside the same container.
+# Caddymium, all in one: the panel runs Caddy inside the same container.
 #   1. docker compose up -d          (pulls the prebuilt image)
 #   2. open http://<this-host>:8080 and create your admin account
-# Set CADDYHUB_SECRET_KEY in a .env file (openssl rand -base64 32) so backups
+# Set CADDYMIUM_SECRET_KEY in a .env file (openssl rand -base64 32) so backups
 # stay restorable on another host. To build from source instead of pulling:
 #   docker compose build
 #
@@ -11,16 +11,16 @@
 # The two-container layout (separate caddy image) is docker-compose.split.yml.
 
 services:
-  caddyhub:
-    image: ghcr.io/krifmaz/caddyhub:latest
+  caddymium:
+    image: ghcr.io/krifmaz/caddymium:latest
     build: .
-    container_name: caddyhub
+    container_name: caddymium
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
-      - "${CADDYHUB_PORT:-8080}:8080"
+      - "${CADDYMIUM_PORT:-8080}:8080"
     env_file:
       - path: .env
         required: false

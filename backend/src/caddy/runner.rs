@@ -116,7 +116,7 @@ impl Runner {
 
     /// Converts a Caddyfile to JSON using the binary.
     pub async fn adapt(&self, caddyfile: &str) -> Result<AdaptResult> {
-        let tmp = tempfile::Builder::new().prefix("caddyhub-").tempdir()?;
+        let tmp = tempfile::Builder::new().prefix("caddymium-").tempdir()?;
         let path = tmp.path().join("Caddyfile");
         std::fs::write(&path, caddyfile)?;
         let ps = to_slash(&path);
@@ -144,7 +144,7 @@ impl Runner {
 
     /// Runs `caddy validate` (adapt + provision, without starting).
     pub async fn validate(&self, caddyfile: &str) -> Result<()> {
-        let tmp = tempfile::Builder::new().prefix("caddyhub-").tempdir()?;
+        let tmp = tempfile::Builder::new().prefix("caddymium-").tempdir()?;
         let path = tmp.path().join("Caddyfile");
         std::fs::write(&path, caddyfile)?;
         let ps = to_slash(&path);

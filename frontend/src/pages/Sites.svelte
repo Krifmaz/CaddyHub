@@ -16,8 +16,8 @@
   let tag = $state('')
   let selected = $state({})
   let upstreams = $state({})
-  let view = $state(localStorage.getItem('caddyhub-sites-view') || 'grid')
-  $effect(() => { try { localStorage.setItem('caddyhub-sites-view', view) } catch {} })
+  let view = $state(localStorage.getItem('caddymium-sites-view') || 'grid')
+  $effect(() => { try { localStorage.setItem('caddymium-sites-view', view) } catch {} })
 
   const kindIcon = { proxy: Server, static: Folder, redirect: CornerUpRight, respond: MessageSquare, forward_proxy: ArrowLeftRight, none: Code }
 

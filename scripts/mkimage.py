@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Builds CaddyHub's container images without Docker.
+"""Builds Caddymium's container images without Docker.
 
 Pulls the base image layers from Docker Hub, adds one layer with our files,
 and writes a tar in `docker save` format that `docker load` (and Portainer's
 Images → Import) accepts. Used when no machine with Docker is at hand.
 
-  mkimage.py panel  --binary caddyhub --out caddyhub.tar [--tag ghcr.io/krifmaz/caddyhub:latest]
-  mkimage.py caddy  --binary caddy --entrypoint caddy/entrypoint.sh --out caddyhub-caddy.tar
+  mkimage.py panel  --binary caddymium --out caddymium.tar [--tag ghcr.io/krifmaz/caddymium:latest]
+  mkimage.py caddy  --binary caddy --entrypoint caddy/entrypoint.sh --out caddymium-caddy.tar
 """
 
 import argparse
@@ -52,7 +52,7 @@ def sha256(b):
 
 def fetch_base(repo, tag, arch="amd64", cache=None):
     """Returns (config_dict, [uncompressed layer tar bytes]) for a Docker Hub image."""
-    cache = cache or os.environ.get("MKIMAGE_CACHE") or os.path.join(os.path.expanduser("~"), "caddyhub-build", "base-cache")
+    cache = cache or os.environ.get("MKIMAGE_CACHE") or os.path.join(os.path.expanduser("~"), "caddymium-build", "base-cache")
     os.makedirs(cache, exist_ok=True)
     tok = hub_token(repo)
     h = {"Authorization": f"Bearer {tok}", "Accept": ACCEPT}
@@ -166,10 +166,10 @@ def build_panel(a):
     cacert = get("https://curl.se/ca/cacert.pem", raw=True)
     passwd = read_from_layers(base_layers, "etc/passwd") or b""
     group = read_from_layers(base_layers, "etc/group") or b""
-    if b"caddyhub:" not in passwd:
-        passwd += b"caddyhub:x:1000:1000:Linux User,,,:/data:/sbin/nologin\n"
-    if b"caddyhub:" not in group:
-        group += b"caddyhub:x:1000:\n"
+    if b"caddymium:" not in passwd:
+        passwd += b"caddymium:x:1000:1000:Linux User,,,:/data:/sbin/nologin\n"
+    if b"caddymium:" not in group:
+        group += b"caddymium:x:1000:\n"
     L = Layer()
     L.file("etc/passwd", passwd, 0o644)
     L.file("etc/group", group, 0o644)
@@ -178,21 +178,21 @@ def build_panel(a):
     L.file("etc/ssl/certs/ca-certificates.crt", cacert, 0o644)
     L.dir("usr/local")
     L.dir("usr/local/bin")
-    L.file("usr/local/bin/caddyhub", binary, 0o755)
+    L.file("usr/local/bin/caddymium", binary, 0o755)
     L.dir("data", 0o700, 1000, 1000)
     base_env = base_cfg.get("config", {}).get("Env") or ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
     config = {
-        "User": "caddyhub",
+        "User": "caddymium",
         "Env": base_env,
-        "Entrypoint": ["caddyhub"],
+        "Entrypoint": ["caddymium"],
         "Cmd": None,
         "WorkingDir": "/data",
         "ExposedPorts": {"8080/tcp": {}},
         "Volumes": {"/data": {}},
-        "Healthcheck": {"Test": ["CMD", "caddyhub", "-healthcheck"], "Interval": 30_000_000_000, "Timeout": 5_000_000_000, "StartPeriod": 10_000_000_000},
-        "Labels": {"org.opencontainers.image.source": "https://github.com/Krifmaz/CaddyHub", "org.opencontainers.image.version": a.version},
+        "Healthcheck": {"Test": ["CMD", "caddymium", "-healthcheck"], "Interval": 30_000_000_000, "Timeout": 5_000_000_000, "StartPeriod": 10_000_000_000},
+        "Labels": {"org.opencontainers.image.source": "https://github.com/Krifmaz/Caddymium", "org.opencontainers.image.version": a.version},
     }
-    write_image(a.out, a.tag, base_cfg, base_layers, L.bytes(), config, f"CaddyHub panel {a.version} (mkimage.py)")
+    write_image(a.out, a.tag, base_cfg, base_layers, L.bytes(), config, f"Caddymium panel {a.version} (mkimage.py)")
 
 
 def build_caddy(a):
@@ -205,18 +205,18 @@ def build_caddy(a):
     L.file("usr/bin/caddy", binary, 0o755)
     L.dir("usr/local")
     L.dir("usr/local/bin")
-    L.file("usr/local/bin/caddyhub-entrypoint", entry, 0o755)
+    L.file("usr/local/bin/caddymium-entrypoint", entry, 0o755)
     bc = dict(base_cfg.get("config", {}))
     config = {
         "Env": bc.get("Env"),
-        "Entrypoint": ["/usr/local/bin/caddyhub-entrypoint"],
+        "Entrypoint": ["/usr/local/bin/caddymium-entrypoint"],
         "Cmd": None,
         "WorkingDir": bc.get("WorkingDir", "/srv"),
         "ExposedPorts": bc.get("ExposedPorts", {"80/tcp": {}, "443/tcp": {}, "443/udp": {}, "2019/tcp": {}}),
         "Volumes": bc.get("Volumes"),
-        "Labels": {"org.opencontainers.image.source": "https://github.com/Krifmaz/CaddyHub", "org.opencontainers.image.version": a.version},
+        "Labels": {"org.opencontainers.image.source": "https://github.com/Krifmaz/Caddymium", "org.opencontainers.image.version": a.version},
     }
-    write_image(a.out, a.tag, base_cfg, base_layers, L.bytes(), config, f"CaddyHub caddy {a.version} (mkimage.py)")
+    write_image(a.out, a.tag, base_cfg, base_layers, L.bytes(), config, f"Caddymium caddy {a.version} (mkimage.py)")
 
 
 def push(a):
@@ -305,7 +305,7 @@ def main():
     if not a.binary or not a.out:
         raise SystemExit(f"{a.kind} needs --binary and --out")
     if not a.tag:
-        a.tag = "ghcr.io/krifmaz/caddyhub:latest" if a.kind == "panel" else "ghcr.io/krifmaz/caddyhub-caddy:latest"
+        a.tag = "ghcr.io/krifmaz/caddymium:latest" if a.kind == "panel" else "ghcr.io/krifmaz/caddymium-caddy:latest"
     (build_panel if a.kind == "panel" else build_caddy)(a)
 
 

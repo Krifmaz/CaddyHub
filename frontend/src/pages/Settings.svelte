@@ -12,8 +12,8 @@
     try {
       const env = await api.get('/backup')
       const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
-      download(`caddyhub-backup-${stamp}.json`, JSON.stringify(env, null, 2))
-      toast('Backup downloaded. It is encrypted with your CADDYHUB_SECRET_KEY; keep the key with it.')
+      download(`caddymium-backup-${stamp}.json`, JSON.stringify(env, null, 2))
+      toast('Backup downloaded. It is encrypted with your CADDYMIUM_SECRET_KEY; keep the key with it.')
     } catch (e) { toastErr(e) }
   }
   async function restoreFile(ev) {
@@ -21,7 +21,7 @@
     ev.target.value = ''
     if (!file) return
     let env
-    try { env = JSON.parse(await file.text()) } catch { toast('That file is not a CaddyHub backup.', 'err'); return }
+    try { env = JSON.parse(await file.text()) } catch { toast('That file is not a Caddymium backup.', 'err'); return }
     const made = env.created_at ? new Date(env.created_at).toLocaleString() : 'unknown date'
     const n = Object.entries(env.contents || {}).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')
     if (!confirm(`Restore the backup from ${made}?\n\nIt holds: ${n || 'unknown contents'}.\n\nThis REPLACES all sites, domains, DNS accounts, snippets, raw blocks, templates, notification channels and settings. Users and API keys are kept. Nothing is applied to Caddy until you review and apply.`)) return
@@ -161,7 +161,7 @@
       </div>
       <div class="card stack">
         <h2>Find app ranges</h2>
-        <p class="muted small">Networks the “Find app” button scans, besides Docker. The network of the address you open CaddyHub at (e.g. 10.0.1.5 → 10.0.1.0/24) is always included. Add other subnets or VLANs here.</p>
+        <p class="muted small">Networks the “Find app” button scans, besides Docker. The network of the address you open Caddymium at (e.g. 10.0.1.5 → 10.0.1.0/24) is always included. Add other subnets or VLANs here.</p>
         <ListInput bind:items={s.scan_ranges} placeholder="10.0.2.0/24" addLabel="Add range" />
       </div>
       <div class="card stack">
@@ -191,7 +191,7 @@
         <label class="check"><input type="checkbox" bind:checked={s.dry_run} /> Safety mode: every apply is a dry run (validate only)</label>
         <div class="grid2">
           <label class="field"><span>Log out after inactivity (minutes)</span><input type="number" bind:value={s.session_timeout_minutes} /></label>
-          <label class="field"><span>Serve CaddyHub itself at</span><input type="text" bind:value={s.panel_domain} placeholder="caddyhub.example.com (optional)" />
+          <label class="field"><span>Serve Caddymium itself at</span><input type="text" bind:value={s.panel_domain} placeholder="caddymium.example.com (optional)" />
             <span class="hint">Caddy will proxy this hostname to the panel with HTTPS.</span></label>
         </div>
         {#if crowdsecAvail}
@@ -211,7 +211,7 @@
       {#if can.admin()}
         <div class="card stack">
           <h2>Backup &amp; restore</h2>
-          <p class="hint">A backup holds every site, domain, DNS account, snippet, raw block, template, notification channel, named secret and these settings, encrypted with the panel's <code>CADDYHUB_SECRET_KEY</code>. Keep the key with the file: a restore needs the same key. Users, API keys and the history are not included; certificates live in Caddy's data volume.</p>
+          <p class="hint">A backup holds every site, domain, DNS account, snippet, raw block, template, notification channel, named secret and these settings, encrypted with the panel's <code>CADDYMIUM_SECRET_KEY</code>. Keep the key with the file: a restore needs the same key. Users, API keys and the history are not included; certificates live in Caddy's data volume.</p>
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <button class="btn primary" type="button" onclick={backup}>Download backup</button>
             <label class="btn" style="cursor:pointer">Restore from file… <input type="file" accept=".json,application/json" style="display:none" onchange={restoreFile} disabled={restoring} /></label>

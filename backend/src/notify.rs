@@ -125,7 +125,7 @@ impl Notifier {
             c,
             &Message {
                 event: "test".into(),
-                title: "CaddyHub test".into(),
+                title: "Caddymium test".into(),
                 message: "If you can read this, notifications work.".into(),
                 time: Utc::now(),
             },
@@ -266,7 +266,7 @@ async fn send_mail(cfg: &BTreeMap<String, String>, m: &Message) -> Result<()> {
         .filter(|t| !t.is_empty())
         .collect();
     let msg = format!(
-        "From: {from}\r\nTo: {}\r\nSubject: [CaddyHub] {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}\r\n",
+        "From: {from}\r\nTo: {}\r\nSubject: [Caddymium] {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}\r\n",
         to.join(", "),
         sanitize_header(&m.title),
         m.message
@@ -285,7 +285,7 @@ async fn send_mail(cfg: &BTreeMap<String, String>, m: &Message) -> Result<()> {
         conn = conn.upgrade(&host).await?;
     }
     conn.expect(220).await?;
-    let me = "caddyhub";
+    let me = "caddymium";
     let ehlo = conn.cmd(&format!("EHLO {me}"), 250).await?;
     if !implicit
         && tls_mode != "none"

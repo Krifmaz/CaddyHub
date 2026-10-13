@@ -37,7 +37,7 @@ pub fn import_json(data: &[u8]) -> Result<ImportResult> {
         im.res.report(
             "storage",
             "skipped",
-            "custom certificate storage is not managed by CaddyHub; Caddy's data volume is used",
+            "custom certificate storage is not managed by Caddymium; Caddy's data volume is used",
         );
     }
     Ok(im.res)
@@ -296,7 +296,7 @@ impl JsonImporter {
                 &format!("tls dns {name}"),
                 "skipped",
                 &format!(
-                    "DNS provider {name} is not known to CaddyHub; add it under Domains & DNS"
+                    "DNS provider {name} is not known to Caddymium; add it under Domains & DNS"
                 ),
             );
             return None;
@@ -322,7 +322,7 @@ impl JsonImporter {
                 append_unique(
                     &mut self.res.warnings,
                     &format!(
-                        "Your {} {k} was written in plain text in the Caddy config. CaddyHub stores it encrypted and only passes it to Caddy as a {{file.*}} placeholder.",
+                        "Your {} {k} was written in plain text in the Caddy config. Caddymium stores it encrypted and only passes it to Caddy as a {{file.*}} placeholder.",
                         prov.name
                     ),
                 );
@@ -538,7 +538,7 @@ impl JsonImporter {
                 &label,
                 orig,
                 &format!(
-                    "no handler CaddyHub understands ({})",
+                    "no handler Caddymium understands ({})",
                     uniq(&dropped).join(", ")
                 ),
             );
@@ -568,7 +568,7 @@ impl JsonImporter {
     fn keep_json(&mut self, label: &str, r: &JRoute) {
         let b = serde_json::to_string_pretty(r).unwrap_or_default();
         let mut sb = String::new();
-        sb.push_str("# Imported from Caddy JSON; CaddyHub could not map this automatically.\n");
+        sb.push_str("# Imported from Caddy JSON; Caddymium could not map this automatically.\n");
         sb.push_str("# Rewrite it as Caddyfile directives (or add it to a site's custom box), then enable this block.\n");
         for l in b.split('\n') {
             sb.push_str("# ");
@@ -974,7 +974,7 @@ fn respond(h: &Map<String, Value>) -> RespondConfig {
 // ---------------------------------------------------------------- round trip
 
 /// Summarizes what each host does, for comparing an imported config with
-/// what CaddyHub regenerates from it.
+/// what Caddymium regenerates from it.
 pub fn fingerprint(res: &ImportResult) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
     for st in &res.sites {

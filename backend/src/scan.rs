@@ -399,7 +399,7 @@ fn identify_client() -> reqwest::Client {
         .timeout(Duration::from_secs(2))
         .danger_accept_invalid_certs(true) // self-signed apps are normal on a LAN
         .redirect(reqwest::redirect::Policy::limited(3))
-        .user_agent("CaddyHub-scan")
+        .user_agent("Caddymium-scan")
         .build()
         .expect("http client")
 }

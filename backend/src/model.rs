@@ -1,4 +1,4 @@
-//! The structured configuration that CaddyHub owns. The SQLite store
+//! The structured configuration that Caddymium owns. The SQLite store
 //! persists these types and the generator turns them into a Caddyfile.
 //! Nothing here is specific to any particular deployment.
 //!

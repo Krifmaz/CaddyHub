@@ -51,7 +51,7 @@
 </script>
 
 <div class="page-head">
-  <div><h1>Your account</h1><div class="sub">{app.me.user.username} · {app.me.user.role} · CaddyHub {app.me.version}</div></div>
+  <div><h1>Your account</h1><div class="sub">{app.me.user.username} · {app.me.user.role} · Caddymium {app.me.version}</div></div>
 </div>
 
 <div class="stack" style="max-width:560px">

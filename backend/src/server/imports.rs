@@ -38,7 +38,7 @@ async fn load_source(
     };
     match id {
         "admin" => {
-            // The running config only counts until CaddyHub has applied its own.
+            // The running config only counts until Caddymium has applied its own.
             if st.store.last_good().is_ok() {
                 return Ok(None);
             }
@@ -55,7 +55,7 @@ async fn load_source(
             )))
         }
         "autosave-backup" => Ok(read_json(&st.imports.autosave_backup)?
-            .map(|r| (r, "Caddy's saved config from before CaddyHub".into()))),
+            .map(|r| (r, "Caddy's saved config from before Caddymium".into()))),
         "autosave" => {
             Ok(read_json(&st.imports.autosave)?.map(|r| (r, "Caddy's autosave.json".into())))
         }

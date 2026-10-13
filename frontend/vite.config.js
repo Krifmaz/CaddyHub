@@ -10,6 +10,6 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    proxy: { '/api': process.env.CADDYHUB_API || 'http://localhost:8080' },
+    proxy: { '/api': process.env.CADDYMIUM_API || 'http://localhost:8080' },
   },
 })

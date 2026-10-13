@@ -74,7 +74,7 @@ pub fn verify_password(hash: &str, pw: &str) -> bool {
 }
 
 static DUMMY_HASH: LazyLock<String> =
-    LazyLock::new(|| hash_password("caddyhub-timing-equalizer").unwrap());
+    LazyLock::new(|| hash_password("caddymium-timing-equalizer").unwrap());
 
 /// Burns the same time as a real verification (for unknown users).
 pub fn verify_dummy(pw: &str) {
@@ -211,8 +211,8 @@ mod tests {
 
     #[test]
     fn uri() {
-        let u = totp_uri("CaddyHub", "alice", "ABC");
-        assert!(u.starts_with("otpauth://totp/CaddyHub%3Aalice?"));
+        let u = totp_uri("Caddymium", "alice", "ABC");
+        assert!(u.starts_with("otpauth://totp/Caddymium%3Aalice?"));
         assert!(u.contains("secret=ABC"));
     }
 }

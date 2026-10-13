@@ -254,7 +254,7 @@ fn explain_dial(addr: &str, err: &str) -> String {
         || e.contains("dns")
     {
         return format!(
-            "name “{host}” not found. If it's a Docker container, Caddy and CaddyHub must share a Docker network with it (or use the server's IP and published port instead)"
+            "name “{host}” not found. If it's a Docker container, Caddy and Caddymium must share a Docker network with it (or use the server's IP and published port instead)"
         );
     }
     if e.contains("refused") {

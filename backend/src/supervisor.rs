@@ -36,6 +36,19 @@ pub struct Managed {
     pub config_dir: PathBuf,
 }
 
+/// Where the config a previous Caddy left behind is kept for import. Uses
+/// the name from before the rename when only that file exists.
+pub fn autosave_backup(config_dir: &Path) -> PathBuf {
+    let dir = config_dir.join("caddy");
+    let current = dir.join("autosave.pre-caddymium.json");
+    let legacy = dir.join("autosave.pre-caddyhub.json");
+    if !current.exists() && legacy.exists() {
+        legacy
+    } else {
+        current
+    }
+}
+
 impl Managed {
     fn custom_bin(&self) -> PathBuf {
         self.caddy_bin
@@ -66,7 +79,7 @@ impl Managed {
         }
         let cfg_dir = self.config_dir.join("caddy");
         let autosave = cfg_dir.join("autosave.json");
-        let backup = cfg_dir.join("autosave.pre-caddyhub.json");
+        let backup = autosave_backup(&self.config_dir);
         if let Ok(b) = std::fs::read(&autosave) {
             if !b.is_empty()
                 && !backup.exists()

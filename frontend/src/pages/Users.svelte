@@ -43,7 +43,7 @@
 </script>
 
 <div class="page-head">
-  <div><h1>Users & API keys</h1><div class="sub">Who can use CaddyHub, and keys for scripts.</div></div>
+  <div><h1>Users & API keys</h1><div class="sub">Who can use Caddymium, and keys for scripts.</div></div>
 </div>
 
 <div class="tabs">

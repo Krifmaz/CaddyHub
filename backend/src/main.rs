@@ -1,4 +1,4 @@
-//! CaddyHub: a web UI and API that owns a structured config, generates a
+//! Caddymium: a web UI and API that owns a structured config, generates a
 //! Caddyfile from it and applies it to Caddy through the admin API with
 //! validation and automatic rollback.
 
@@ -32,8 +32,8 @@ use std::time::Duration;
 
 use crate::registry::Capabilities;
 
-/// Set at build time by the Dockerfile (CADDYHUB_VERSION); "dev" otherwise.
-const VERSION: &str = match option_env!("CADDYHUB_VERSION") {
+/// Set at build time by the Dockerfile (CADDYMIUM_VERSION); "dev" otherwise.
+const VERSION: &str = match option_env!("CADDYMIUM_VERSION") {
     Some(v) => v,
     None => "dev",
 };
@@ -70,11 +70,12 @@ async fn run(cfg: config::Config) -> Result<()> {
     let secret_box = Arc::new(secrets::SecretBox::new(&key)?);
     if key_src == "generated" {
         tracing::warn!(
-            "using a generated secret key stored in the data dir; set CADDYHUB_SECRET_KEY to keep backups restorable on another host"
+            "using a generated secret key stored in the data dir; set CADDYMIUM_SECRET_KEY to keep backups restorable on another host"
         );
     }
     let store = Arc::new(
-        store::Store::open(&cfg.path("caddyhub.db"), secret_box).context("open database")?,
+        store::Store::open(&config::database_path(&cfg.data_dir), secret_box)
+            .context("open database")?,
     );
 
     initial_admin(&cfg, &store)?;
@@ -108,7 +109,7 @@ async fn run(cfg: config::Config) -> Result<()> {
         persist_path: cfg.caddyfile_path.clone(),
         caps: caps.clone(),
         notify: Some(Arc::new(move |event: &str, msg: &str| {
-            n.send(event, "CaddyHub: config not applied", msg)
+            n.send(event, "Caddymium: config not applied", msg)
         })),
     }));
     let plugins = Arc::new(plugins::Manager::new(
@@ -135,17 +136,14 @@ async fn run(cfg: config::Config) -> Result<()> {
         secure_cookie: cfg.base_url.starts_with("https://"),
         dev_no_auth: cfg.dev_no_auth,
         imports: server::ImportPaths {
-            autosave_backup: cfg
-                .caddy_config_dir
-                .join("caddy")
-                .join("autosave.pre-caddyhub.json"),
+            autosave_backup: supervisor::autosave_backup(&cfg.caddy_config_dir),
             autosave: cfg.caddy_config_dir.join("caddy").join("autosave.json"),
             caddyfile: cfg.import_caddyfile.clone(),
         },
     });
     if cfg.dev_no_auth {
         tracing::warn!(
-            "CADDYHUB_DEV_NO_AUTH is set: the panel has NO authentication. Never use this in production."
+            "CADDYMIUM_DEV_NO_AUTH is set: the panel has NO authentication. Never use this in production."
         );
     }
 
@@ -220,7 +218,7 @@ async fn run(cfg: config::Config) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .with_context(|| format!("listen on {addr}"))?;
-    tracing::info!(addr = %addr, version = VERSION, data = %cfg.data_dir.display(), ui = web::available(), "CaddyHub listening");
+    tracing::info!(addr = %addr, version = VERSION, data = %cfg.data_dir.display(), ui = web::available(), "Caddymium listening");
     let app = server::router(state);
     let mut stop = stop_rx;
     axum::serve(
@@ -324,7 +322,7 @@ async fn shutdown_signal() {
     tracing::info!("shutting down");
 }
 
-/// Creates an admin from CADDYHUB_INITIAL_ADMIN_USER/PASSWORD on an empty
+/// Creates an admin from CADDYMIUM_INITIAL_ADMIN_USER/PASSWORD on an empty
 /// database (for unattended installs). Otherwise the UI's first-run setup
 /// creates it.
 fn initial_admin(cfg: &config::Config, st: &store::Store) -> Result<()> {
@@ -333,7 +331,7 @@ fn initial_admin(cfg: &config::Config, st: &store::Store) -> Result<()> {
         return Ok(());
     }
     auth::password_policy(&cfg.initial_admin_pass)
-        .map_err(|e| anyhow::anyhow!("CADDYHUB_INITIAL_ADMIN_PASSWORD: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("CADDYMIUM_INITIAL_ADMIN_PASSWORD: {e}"))?;
     let h = auth::hash_password(&cfg.initial_admin_pass)?;
     st.save_user(store::User {
         username: cfg.initial_admin_user.clone(),

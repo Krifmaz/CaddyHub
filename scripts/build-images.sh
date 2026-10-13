@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds CaddyHub's images on a Linux box (or WSL) without Docker and without
+# Builds Caddymium's images on a Linux box (or WSL) without Docker and without
 # a system C toolchain: zig is the C compiler and linker for everything.
 #   build-images.sh panel   compile the panel for linux/amd64 and pack the image
 #   build-images.sh caddy   pack the Caddy image from a downloaded Caddy binary
@@ -7,14 +7,14 @@
 #
 # Needs: rustup (with the x86_64-unknown-linux-musl target), python3, and zig
 # at $ZIG (default ~/zig/zig-x86_64-linux-0.14.1/zig).
-# Inputs/outputs live under $WORK (default ~/caddyhub-build):
+# Inputs/outputs live under $WORK (default ~/caddymium-build):
 #   $WORK/src          copy of backend/ (with ui/dist built)
 #   $WORK/caddy        Caddy linux/amd64 binary with plugins (from caddyserver.com/api/download)
-#   $WORK/out          caddyhub.tar and caddyhub-caddy.tar, ready for `docker load`
+#   $WORK/out          caddymium.tar and caddymium-caddy.tar, ready for `docker load`
 set -euo pipefail
 
 REPO="${REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
-WORK="${WORK:-$HOME/caddyhub-build}"
+WORK="${WORK:-$HOME/caddymium-build}"
 ZIG="${ZIG:-$HOME/zig/zig-x86_64-linux-0.14.1/zig}"
 VERSION="${VERSION:-local-$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo dev)}"
 TARGET=x86_64-unknown-linux-musl
@@ -76,19 +76,19 @@ build_panel() {
 		export AR_x86_64_unknown_linux_musl="$WORK/bin/zigar"
 		export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$WORK/bin/zigcc-gnu"
 		export CC="$WORK/bin/zigcc-gnu" AR="$WORK/bin/zigar"
-		CADDYHUB_VERSION="$VERSION" cargo build --release --locked --target "$TARGET"
+		CADDYMIUM_VERSION="$VERSION" cargo build --release --locked --target "$TARGET"
 	)
-	cp "$WORK/src/target/$TARGET/release/caddyhub" "$WORK/caddyhub"
-	ls -la "$WORK/caddyhub"
-	"$WORK/caddyhub" --version
-	python3 "$REPO/scripts/mkimage.py" panel --binary "$WORK/caddyhub" --out "$WORK/out/caddyhub.tar" --version "$VERSION"
+	cp "$WORK/src/target/$TARGET/release/caddymium" "$WORK/caddymium"
+	ls -la "$WORK/caddymium"
+	"$WORK/caddymium" --version
+	python3 "$REPO/scripts/mkimage.py" panel --binary "$WORK/caddymium" --out "$WORK/out/caddymium.tar" --version "$VERSION"
 }
 
 build_caddy() {
 	test -f "$WORK/caddy" || { echo "put the Caddy linux/amd64 binary at $WORK/caddy first" >&2; exit 1; }
 	chmod +x "$WORK/caddy"
 	"$WORK/caddy" version
-	python3 "$REPO/scripts/mkimage.py" caddy --binary "$WORK/caddy" --entrypoint "$REPO/caddy/entrypoint.sh" --out "$WORK/out/caddyhub-caddy.tar" --version "$VERSION"
+	python3 "$REPO/scripts/mkimage.py" caddy --binary "$WORK/caddy" --entrypoint "$REPO/caddy/entrypoint.sh" --out "$WORK/out/caddymium-caddy.tar" --version "$VERSION"
 }
 
 case "${1:-all}" in

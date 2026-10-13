@@ -226,7 +226,7 @@ impl Manager {
         if !dir.is_dir() {
             return Err(anyhow!("{} is not a directory", dir.display()));
         }
-        let probe = dir.join(".caddyhub-write-test");
+        let probe = dir.join(".caddymium-write-test");
         std::fs::write(&probe, b"ok")
             .with_context(|| format!("{} is not writable by the panel", dir.display()))?;
         let _ = std::fs::remove_file(&probe);

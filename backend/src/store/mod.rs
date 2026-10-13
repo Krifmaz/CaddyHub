@@ -1,4 +1,4 @@
-//! The SQLite-backed source of truth for CaddyHub.
+//! The SQLite-backed source of truth for Caddymium.
 
 mod migrations;
 mod misc;
@@ -524,7 +524,7 @@ impl Store {
         let id: i64 = row.get(0)?;
         let plain = self.secret_box.open(&enc).map_err(|e| {
             rusqlite::Error::ToSqlConversionFailure(
-                format!("decrypt credential {id} (wrong CADDYHUB_SECRET_KEY?): {e}").into(),
+                format!("decrypt credential {id} (wrong CADDYMIUM_SECRET_KEY?): {e}").into(),
             )
         })?;
         let fields: BTreeMap<String, String> = serde_json::from_slice(&plain).unwrap_or_default();

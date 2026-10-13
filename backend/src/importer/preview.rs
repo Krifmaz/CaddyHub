@@ -44,7 +44,7 @@ pub fn preview_input(
             } else if let Some(p) = v.strip_prefix("file:") {
                 format!("{{file.{p}}}")
             } else {
-                "{env.CADDYHUB_IMPORT_PREVIEW}".to_string()
+                "{env.CADDYMIUM_IMPORT_PREVIEW}".to_string()
             };
             r.fields.insert(k.clone(), ph);
         }

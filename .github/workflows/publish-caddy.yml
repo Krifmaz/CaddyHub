@@ -1,7 +1,7 @@
 name: Publish Caddy image
 
 # Builds the Caddy image (xcaddy + plugins) and pushes it to
-#   ghcr.io/<owner>/caddyhub-caddy
+#   ghcr.io/<owner>/caddymium-caddy
 # Only when caddy/ changes, or on request. amd64 only by default: the arm64
 # build runs under emulation and takes most of an hour of Actions minutes.
 # Plugins can be added at runtime from the panel, so this rarely needs to run.
@@ -45,7 +45,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/caddyhub-caddy
+          images: ghcr.io/${{ github.repository_owner }}/caddymium-caddy
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -58,5 +58,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=caddyhub-caddy
-          cache-to: type=gha,mode=max,scope=caddyhub-caddy
+          cache-from: type=gha,scope=caddymium-caddy
+          cache-to: type=gha,mode=max,scope=caddymium-caddy

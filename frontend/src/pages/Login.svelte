@@ -38,7 +38,7 @@
 <div class="wrap">
   <div class="panel">
     <form class="box" onsubmit={submit}>
-      <div class="brand"><img src="/favicon.svg" alt="" width="36" height="36" /><span>CaddyHub</span></div>
+      <div class="brand"><img src="/favicon.svg" alt="" width="36" height="36" /><span>Caddymium</span></div>
 
       {#if twofa}
         <div class="head"><h1>Two-factor code</h1><p class="muted">Enter the 6-digit code from your authenticator app.</p></div>
@@ -50,7 +50,7 @@
         {#if app.me?.setup_token_required}
           <label class="field"><span>Setup token</span>
             <input type="password" bind:value={token} required />
-            <span class="hint">The value of <code>CADDYHUB_SETUP_TOKEN</code> on your server.</span>
+            <span class="hint">The value of <code>CADDYMIUM_SETUP_TOKEN</code> on your server.</span>
           </label>
         {/if}
         <label class="field"><span>Username</span><input type="text" autocomplete="username" bind:value={username} required /></label>

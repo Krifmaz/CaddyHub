@@ -1,9 +1,10 @@
 // Light / dark / system theme, persisted per browser.
-const KEY = 'caddyhub-theme'
+const KEY = 'caddymium-theme'
 const mq = matchMedia('(prefers-color-scheme: dark)')
 
 function read() {
-  try { return localStorage.getItem(KEY) || 'system' } catch { return 'system' }
+  // 'caddyhub-theme' is the key used before the rename.
+  try { return localStorage.getItem(KEY) || localStorage.getItem('caddyhub-theme') || 'system' } catch { return 'system' }
 }
 export const theme = $state({ choice: read() })
 

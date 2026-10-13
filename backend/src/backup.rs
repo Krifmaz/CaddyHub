@@ -26,7 +26,9 @@ use std::collections::BTreeMap;
 
 use crate::store::Store;
 
-pub const FORMAT: &str = "caddyhub-backup";
+pub const FORMAT: &str = "caddymium-backup";
+/// Format name of backups made before the rename from CaddyHub.
+pub const LEGACY_FORMAT: &str = "caddyhub-backup";
 pub const ARCHIVE_VERSION: i64 = 1;
 
 /// Tables in dependency order: parents before children, so a restore can
@@ -272,8 +274,8 @@ pub fn seal(store: &Store, panel_version: &str, caddy_version: &str) -> Result<E
 
 /// Decrypts and decodes an archive.
 pub fn open(store: &Store, env: &Envelope) -> Result<Snapshot> {
-    if env.format != FORMAT {
-        return Err(anyhow!("this is not a CaddyHub backup file"));
+    if env.format != FORMAT && env.format != LEGACY_FORMAT {
+        return Err(anyhow!("this is not a Caddymium backup file"));
     }
     if env.version > ARCHIVE_VERSION {
         return Err(anyhow!(
@@ -285,7 +287,7 @@ pub fn open(store: &Store, env: &Envelope) -> Result<Snapshot> {
         .decode(env.data.trim())
         .context("the backup data is not valid base64")?;
     let plain = store.secret_box().open(&sealed).map_err(|_| {
-        anyhow!("cannot decrypt this backup: it was made with a different CADDYHUB_SECRET_KEY")
+        anyhow!("cannot decrypt this backup: it was made with a different CADDYMIUM_SECRET_KEY")
     })?;
     let snap: Snapshot = serde_json::from_slice(&plain).context("decode backup")?;
     Ok(snap)
@@ -393,7 +395,7 @@ mod tests {
 
         let other = store(b"k2");
         let err = open(&other, &env).unwrap_err().to_string();
-        assert!(err.contains("different CADDYHUB_SECRET_KEY"), "{err}");
+        assert!(err.contains("different CADDYMIUM_SECRET_KEY"), "{err}");
 
         let fresh = store(b"k1");
         let snap = open(&fresh, &env).unwrap();
@@ -409,5 +411,12 @@ mod tests {
             ..Default::default()
         };
         assert!(open(&fresh, &bad).is_err());
+
+        // Backups made before the rename still open.
+        let legacy = Envelope {
+            format: LEGACY_FORMAT.into(),
+            ..env
+        };
+        assert_eq!(open(&fresh, &legacy).unwrap().tables["sites"].rows.len(), 1);
     }
 }

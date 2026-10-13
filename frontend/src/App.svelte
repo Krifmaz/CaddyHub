@@ -97,7 +97,7 @@
     <aside class:open={menuOpen}>
       <div class="brand">
         <img src="/favicon.svg" alt="" width="28" height="28" />
-        <span>CaddyHub</span>
+        <span>Caddymium</span>
         <button class="btn ghost icon sm close-menu" aria-label="Close menu" onclick={() => (menuOpen = false)}><X size={18} /></button>
       </div>
 
@@ -158,7 +158,7 @@
       <header class="mobile-top">
         <button class="btn ghost icon" aria-label="Menu" onclick={() => (menuOpen = true)}><Menu size={20} /></button>
         <img src="/favicon.svg" alt="" width="24" height="24" />
-        <strong>CaddyHub</strong>
+        <strong>Caddymium</strong>
         <button class="btn ghost icon right" aria-label="Search" onclick={() => palette.show()}><Search size={19} /></button>
       </header>
 

@@ -113,7 +113,7 @@
 <div class="page-head">
   <div>
     <h1>Plugins</h1>
-    <div class="sub">Caddy plugins are compiled in. CaddyHub fetches a build with your selection from the official download service (what <code>caddy add-package</code> uses), checks your config against it, then restarts Caddy. The previous build is kept so you can roll back.</div>
+    <div class="sub">Caddy plugins are compiled in. Caddymium fetches a build with your selection from the official download service (what <code>caddy add-package</code> uses), checks your config against it, then restarts Caddy. The previous build is kept so you can roll back.</div>
   </div>
   <button class="btn right" onclick={load} disabled={busy}><RefreshCw size={15} /> Reload</button>
 </div>

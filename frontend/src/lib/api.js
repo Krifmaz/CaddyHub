@@ -1,4 +1,4 @@
-// Thin JSON client for the CaddyHub API. The CSRF token comes from /api/me
+// Thin JSON client for the Caddymium API. The CSRF token comes from /api/me
 // (or login) and is sent on every state-changing request.
 let csrf = ''
 export function setCSRF(t) { csrf = t || '' }

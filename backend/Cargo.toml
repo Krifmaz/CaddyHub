@@ -1,9 +1,9 @@
 [package]
-name = "caddyhub"
-version = "0.4.0"
+name = "caddymium"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.85"
-description = "CaddyHub: a web UI and API that manages a Caddy server"
+description = "Caddymium: a web UI and API that manages a Caddy server"
 license = "MIT"
 
 [dependencies]

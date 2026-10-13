@@ -28,7 +28,7 @@
 
 <div class="wrap stack">
   <div>
-    <h1>Let's set up CaddyHub</h1>
+    <h1>Let's set up Caddymium</h1>
     <p class="muted">Two quick steps. Everything can be changed later in Settings.</p>
   </div>
   <div class="steps row">
@@ -57,7 +57,7 @@
   {:else if step === 2}
     <div class="card stack">
       <h2>Bring in your existing config</h2>
-      <p class="muted">CaddyHub looks for the config your Caddy is already running (or ran before). You can also paste a Caddyfile. Anything it can't turn into forms is kept for you to review.</p>
+      <p class="muted">Caddymium looks for the config your Caddy is already running (or ran before). You can also paste a Caddyfile. Anything it can't turn into forms is kept for you to review.</p>
     </div>
     {#if imported}
       <div class="alert ok">Imported {imported.sites} site(s). You'll review the result before anything goes live.</div>
@@ -70,10 +70,10 @@
   {:else}
     <div class="card stack">
       <h2>You're ready</h2>
-      <p>How CaddyHub works:</p>
+      <p>How Caddymium works:</p>
       <ol>
         <li><strong>Edit</strong> sites with forms (or raw Caddyfile text when you need to).</li>
-        <li><strong>Review</strong>: CaddyHub generates the Caddyfile, Caddy validates it, and you see a diff.</li>
+        <li><strong>Review</strong>: Caddymium generates the Caddyfile, Caddy validates it, and you see a diff.</li>
         <li><strong>Apply</strong>: it goes live. If Caddy isn't healthy afterwards, the previous config is restored automatically.</li>
       </ol>
       <div class="row">

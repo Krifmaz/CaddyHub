@@ -602,7 +602,7 @@ pub async fn backup_download(
         .map_err(|e| ApiError::internal(format!("{e:#}")))?;
     st.audit(Some(&p), &c, "backup.download", "", "");
     let name = format!(
-        "caddyhub-backup-{}.json",
+        "caddymium-backup-{}.json",
         chrono::Utc::now().format("%Y%m%d-%H%M%S")
     );
     let mut r = super::json(StatusCode::OK, &env);

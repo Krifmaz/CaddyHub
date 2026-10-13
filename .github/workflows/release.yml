@@ -1,7 +1,7 @@
 name: Publish panel image
 
 # Builds the panel image and pushes it to GitHub Container Registry:
-#   ghcr.io/<owner>/caddyhub
+#   ghcr.io/<owner>/caddymium
 # Pushes to main publish :latest; version tags (v1.2.3) also publish :1.2.3
 # and get an entry on the Releases page that points at that image.
 # amd64 only by default: arm64 is built under emulation and costs a lot of
@@ -45,7 +45,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/caddyhub
+          images: ghcr.io/${{ github.repository_owner }}/caddymium
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -59,8 +59,8 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}-${{ github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=caddyhub
-          cache-to: type=gha,mode=max,scope=caddyhub
+          cache-from: type=gha,scope=caddymium
+          cache-to: type=gha,mode=max,scope=caddymium
 
   release:
     # A version tag also gets an entry on the Releases page, with generated
@@ -76,7 +76,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          IMAGE: ghcr.io/${{ github.repository_owner }}/caddyhub
+          IMAGE: ghcr.io/${{ github.repository_owner }}/caddymium
         run: |
           set -euo pipefail
           image=${IMAGE,,}
@@ -86,4 +86,4 @@ jobs:
             printf '```yaml\nimage: %s:%s\n```\n\n' "$image" "$v"
             gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" --jq .body
           } > notes.md
-          gh release create "$TAG" --title "CaddyHub $TAG" --notes-file notes.md
+          gh release create "$TAG" --title "Caddymium $TAG" --notes-file notes.md
