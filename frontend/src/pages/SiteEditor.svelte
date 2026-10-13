@@ -39,6 +39,15 @@
   let hostKey = $state(0)
   let scanning = $state(false)
   let portsText = $state('')
+  let secDefaults = $state(null)   // Security page defaults (settings.security.defaults)
+  const appPresets = [['vaultwarden', 'Vaultwarden / Bitwarden apps'], ['jellyfin', 'Jellyfin apps'], ['plex', 'Plex apps'], ['immich', 'Immich apps']]
+  const shieldRows = [['crowdsec', 'Block known attackers (CrowdSec)'], ['bots', 'Block AI crawlers and scrapers'], ['privacy', 'Keep out of search engines'], ['rate_limit', 'Limit requests per visitor'], ['home_only', 'Home only']]
+  const onOff = (v) => (v ? 'on' : 'off')
+  function triValue(k) { const v = site.config.access.shields[k]; return v === true ? 'on' : v === false ? 'off' : '__default' }
+  function setTri(k, v) { site.config.access.shields[k] = v === 'on' ? true : v === 'off' ? false : null }
+  const loginNames = { '': 'no login wall', sso: 'sign-in + 2FA', basic: 'shared password' }
+  const sh = $derived(site?.config?.access?.shields)
+  const login = $derived(sh ? (sh.login ?? secDefaults?.login ?? '') : '')
 
   // Quick fill from a scan result: upstream, and name/hostname if still empty.
   function usePick(r) {
@@ -79,6 +88,10 @@
     c.access.allow_cidrs ||= []
     c.access.deny_cidrs ||= []
     c.access.basic_auth ||= []
+    c.access.shields ||= {}
+    c.access.shields.app_paths ||= []
+    c.access.shields.sso_users ||= []
+    if (c.access.crowdsec && c.access.shields.crowdsec == null) c.access.shields.crowdsec = true
     c.headers_remove ||= []
     c.compression ||= []
     c.snippets ||= []
@@ -99,6 +112,7 @@
         api.get('/settings').catch(() => ({})),
       ])
       domainList = knownDomains(doms, all, st.default_domain)
+      secDefaults = st.security?.defaults || null
       defaultDomain = st.default_domain || domainList[0] || ''
       site = ensure(s)
       tagText = (site.tags || []).join(', ')
@@ -123,6 +137,11 @@
   function payload() {
     const s = clone(site)
     const c = s.config
+    const sh = c.access.shields
+    for (const k of Object.keys(sh)) if (sh[k] === null || sh[k] === undefined || sh[k] === '__default') delete sh[k]
+    sh.app_paths = (sh.app_paths || []).map((x) => x.trim()).filter(Boolean)
+    sh.sso_users = (sh.sso_users || []).map((x) => x.trim()).filter(Boolean)
+    c.access.crowdsec = false
     s.tags = tagText.split(',').map((t) => t.trim()).filter(Boolean)
     s.hosts = s.hosts.map((h) => h.trim()).filter(Boolean)
     if (c.forward_proxy) {
@@ -413,10 +432,54 @@
     </details>
 
     <details class="section">
-      <summary>{@render sec(Lock, 'Access control', 'Passwords, IP rules, single sign-on and rate limits')}</summary>
+      <summary>{@render sec(Lock, 'Access control', 'Protection, login wall, IP rules and rate limits')}</summary>
       <div class="body">
+
         <div class="field">
-          <span>Password protection</span>
+          <span>Protection <a class="small" href="#/security" style="font-weight:400">(defaults on the Security page)</a></span>
+          <div class="shields">
+            {#each shieldRows as [k, label]}
+              <label class="shield-row"><span class="grow">{label}</span>
+                <select value={triValue(k)} onchange={(e) => setTri(k, e.target.value)}>
+                  <option value="__default">Default{secDefaults ? ` (${onOff(secDefaults[k])})` : ''}</option>
+                  <option value="on">On</option>
+                  <option value="off">Off</option>
+                </select></label>
+            {/each}
+            <label class="shield-row"><span class="grow">Login wall</span>
+              <select value={sh.login ?? '__default'} onchange={(e) => (sh.login = e.target.value === '__default' ? null : e.target.value)}>
+                <option value="__default">Default{secDefaults ? ` (${loginNames[secDefaults.login || '']})` : ''}</option>
+                <option value="">No login wall</option>
+                <option value="sso">Sign-in with two-factor</option>
+                <option value="basic">Shared password</option>
+              </select></label>
+          </div>
+        </div>
+
+        {#if login}
+          <div class="grid2">
+            <label class="field"><span>Phone and TV apps</span>
+              <select bind:value={sh.apps}>
+                <option value="">None: the login wall covers everything</option>
+                {#each appPresets as [pid, pname]}<option value={pid}>{pname}</option>{/each}
+                <option value="custom">Custom paths…</option>
+              </select>
+              <span class="hint">Apps can't get past a login wall. Picking the app leaves the paths it uses to the app's own sign-in, while the browser pages stay behind the wall.</span></label>
+            {#if login === 'sso'}
+              <div class="field"><span>Only these accounts</span><ListInput bind:items={sh.sso_users} placeholder="username" addLabel="Add account" />
+                <span class="hint">Empty: every Caddymium account can sign in to this site.</span></div>
+            {/if}
+          </div>
+          {#if sh.apps === 'custom'}
+            <div class="grid2">
+              <label class="field"><span>The login wall covers</span>
+                <select bind:value={sh.app_mode}><option value="except">Everything except these paths</option><option value="only">Only these paths</option></select></label>
+              <div class="field"><span>Paths</span><ListInput bind:items={sh.app_paths} placeholder="/api/*" addLabel="Add path" /></div>
+            </div>
+          {/if}
+        {/if}
+        <div class="field">
+          <span>Extra passwords for this site only</span>
           {#each site.config.access.basic_auth as u, i}
             <div class="row">
               <input type="text" bind:value={u.username} placeholder="username" style="max-width:200px" />
@@ -464,9 +527,6 @@
             <div><button class="btn xs" type="button" onclick={ensureRL} disabled={!available('rate_limit')}><Plus size={14} /> Add rate limit</button></div>
           {/if}
         </div>
-        {#if available('crowdsec')}
-          <label class="check"><input type="checkbox" bind:checked={site.config.access.crowdsec} /> Block IPs flagged by CrowdSec</label>
-        {/if}
       </div>
     </details>
 
@@ -532,6 +592,9 @@
 {#if scanning}<ScanModal onpick={usePick} onclose={() => (scanning = false)} />{/if}
 
 <style>
+  .shields { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 14px; }
+  .shield-row { display: flex; align-items: center; gap: 10px; font-size: 13.5px; padding: 4px 0; }
+  .shield-row select { max-width: 150px; padding: 4px 8px; font-size: 13px; }
   fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
   .back { align-self: flex-start; margin-left: -8px; }

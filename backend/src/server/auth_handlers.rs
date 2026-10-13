@@ -147,6 +147,12 @@ pub async fn login(
             "this account is disabled".into(),
         ));
     }
+    if u.role == auth::ROLE_MEMBER {
+        return Err(ApiError(
+            StatusCode::FORBIDDEN,
+            "this account can sign in to your protected sites, not to the panel".into(),
+        ));
+    }
     st.limiter().reset(&key);
     let pending = u.totp_enabled;
     start_session(&st, &c, u, pending).await
@@ -250,7 +256,7 @@ pub async fn login_totp(
 }
 
 /// Verifies a code and rejects reuse of an already-used time step.
-fn check_totp(st: &AppState, u: &User, code: &str) -> bool {
+pub(crate) fn check_totp(st: &AppState, u: &User, code: &str) -> bool {
     if u.totp_secret.is_empty() {
         return false;
     }

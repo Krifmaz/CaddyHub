@@ -14,16 +14,19 @@ use subtle::ConstantTimeEq;
 
 use crate::secrets::random_bytes;
 
-// Roles, in increasing privilege.
+// Roles, in increasing privilege. A member can only sign in to sites
+// behind the login wall, not to the panel.
+pub const ROLE_MEMBER: &str = "member";
 pub const ROLE_VIEWER: &str = "viewer";
 pub const ROLE_EDITOR: &str = "editor";
 pub const ROLE_ADMIN: &str = "admin";
 
 fn role_rank(r: &str) -> u8 {
     match r {
-        ROLE_VIEWER => 1,
-        ROLE_EDITOR => 2,
-        ROLE_ADMIN => 3,
+        ROLE_MEMBER => 1,
+        ROLE_VIEWER => 2,
+        ROLE_EDITOR => 3,
+        ROLE_ADMIN => 4,
         _ => 0,
     }
 }

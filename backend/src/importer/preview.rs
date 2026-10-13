@@ -20,6 +20,9 @@ pub fn preview_input(
         caps,
         ..Default::default()
     };
+    // The preview checks that the import is faithful, so it compares without
+    // the protections added on top (Security page); they apply afterwards.
+    input.settings.security.defaults = crate::model::Shields::default();
     if !res.email.is_empty() {
         input.settings.acme_email = res.email.clone();
     }

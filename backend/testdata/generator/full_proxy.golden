@@ -33,20 +33,26 @@ pve.example.com {
 		-Server
 		-X-Powered-By
 	}
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
 	request_body {
 		max_size 100MB
 	}
 	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
 		@cp_denied client_ip 192.168.66.0/24
 		respond @cp_denied Forbidden 403
 		@cp_not_allowed not client_ip 192.168.0.0/16 10.0.0.0/8
 		respond @cp_not_allowed Forbidden 403
 		basic_auth {
 			admin $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG
-		}
-		forward_auth authelia:9091 {
-			uri /api/authz/forward-auth
-			copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
 		}
 		handle_path /grpc/* {
 			reverse_proxy grpc:50051 {

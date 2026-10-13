@@ -26,8 +26,20 @@ files.example.com {
 		}
 		format json
 	}
-	root * /srv/files
-	file_server browse
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		root * /srv/files
+		file_server browse
+	}
 }
 
 # site 1: Docs
@@ -39,9 +51,21 @@ docs.example.com {
 		}
 		format json
 	}
-	root * /srv/docs
-	try_files {path} /index.html
-	file_server
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		root * /srv/docs
+		try_files {path} /index.html
+		file_server
+	}
 }
 
 # site 3: Old
@@ -53,7 +77,19 @@ old.example.com {
 		}
 		format json
 	}
-	redir https://new.example.com{uri} 308
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		redir https://new.example.com{uri} 308
+	}
 }
 
 # site 4: Status
@@ -65,8 +101,20 @@ status.example.com {
 		}
 		format json
 	}
-	header Content-Type application/json
-	respond `{"ok":true}` 200
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		header Content-Type application/json
+		respond `{"ok":true}` 200
+	}
 }
 
 # site 5: Maint
@@ -78,7 +126,17 @@ maint.example.com {
 		}
 		format json
 	}
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
 	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
 		header Retry-After 300
 		respond "Down for maintenance. Please check back soon." 503
 	}

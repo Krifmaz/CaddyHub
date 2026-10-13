@@ -39,7 +39,7 @@ Every push to `main` publishes a ready-made image (amd64; arm64 on request from 
 - `ghcr.io/krifmaz/caddymium:latest`: the panel with Caddy built in, including the plugins for Cloudflare, Porkbun, DuckDNS, Namecheap, Route53, DigitalOcean, Hetzner, deSEC, OVH, Gandi and ACME-DNS, plus rate limiting
 - `ghcr.io/krifmaz/caddymium-caddy:latest`: the separate Caddy image for the two-container layout (rebuilt when `caddy/` changes)
 
-Version tags (`v0.5.0`) additionally publish `ghcr.io/krifmaz/caddymium:0.5.0` and appear under [Releases](https://github.com/Krifmaz/Caddymium/releases) with notes; `:latest` always follows `main`.
+Version tags (`v0.6.0`) additionally publish `ghcr.io/krifmaz/caddymium:0.6.0` and appear under [Releases](https://github.com/Krifmaz/Caddymium/releases) with notes; `:latest` always follows `main`.
 
 Paste [docker-compose.yml](docker-compose.yml) into a Portainer stack (drop the `build:` line). It only pulls images, so it works with Portainer's remote agents, which can't build. Anything the image lacks can be added later from **Plugins** in the UI, no rebuild needed.
 
@@ -70,9 +70,33 @@ Other pages:
 - **Snippets & raw**: reusable snippets you attach to sites, plus verbatim top-level blocks.
 - **Import**: on first start, Caddymium looks for your existing config and offers it with no pasting needed. It checks, in order: the running Caddy (admin API), the `autosave.json` a previous Caddy left in the shared config volume (the Caddy container backs it up once before its first start), and an old Caddyfile mounted at `/import/Caddyfile`. You can also paste a Caddyfile or Caddy JSON. Before you import, Caddymium regenerates the config, has Caddy check it, and compares every host ("4 sites imported, 0 differences"). Anything it can't map is kept, disabled, for you to review. DNS tokens written in plain text are moved into encrypted storage.
 - **Settings**: certificate authority (Let's Encrypt, ZeroSSL, Google, staging, custom ACME), propagation resolvers, trusted proxies/CDNs, logs and metrics, extra global options, and a dry-run safety mode.
-- **Users & API keys**: admin / editor / viewer roles, TOTP two-factor, and bearer-token API keys.
+- **Security**: protections for every site at once, each overridable per site: block known attackers (built-in CrowdSec), block AI crawlers and scrapers, keep sites out of search engines, rate limiting, home-only access, and a login wall (sign-in with two-factor, or a shared password). See [Security](#security) below.
+- **Users & API keys**: admin / editor / viewer roles, plus **member** accounts that can only sign in to your protected sites; TOTP two-factor and bearer-token API keys.
 - **Notifications**: ntfy, Gotify, Discord, Slack, email or webhook when an apply fails.
 - **Audit log**: who changed what.
+
+### Security
+
+The **Security** page sets what every site gets; each site can override any of it (the per-site table on the page, or **Access control** in the site editor). Changes go live with the next apply.
+
+- **Block known attackers.** Turn on **CrowdSec** at the bottom of the page and Caddymium downloads CrowdSec from its official image (about 85 MB, kept in the data volume), sets it up and runs it next to Caddy; no extra container. It reads Caddy's access logs and bans IPs that scan for secrets, probe admin pages, try exploits or brute-force logins, plus CrowdSec's community blocklist. Detection rules refresh daily; new CrowdSec releases install like Caddy updates (automatically when automatic updates are on). The page lists current bans with **Unban**, and you can ban an address yourself. Your home network is never banned. Built-in CrowdSec needs the all-in-one image; with Caddy in its own container, point Caddymium at an external CrowdSec instead. Caddy needs the `caddy-crowdsec-bouncer` plugin, which the image includes (older custom builds get an **Install it** button).
+- **Block AI crawlers and scrapers.** Requests from the 170+ AI crawlers in the community-maintained [ai.robots.txt](https://github.com/ai-robots-txt/ai.robots.txt) list (GPTBot, ClaudeBot, Bytespider, PerplexityBot, …) get a 403. The list refreshes daily and goes live on its own when nothing else is waiting for review. Optionally also block search engines, SEO tools, archivers and link previews. CrowdSec doesn't cover this: AI crawlers identify themselves honestly and don't behave like attackers.
+- **Keep out of search engines and AI datasets.** A `robots.txt` that disallows everything, `X-Robots-Tag: noindex, nofollow, noai, noimageai`, `Referrer-Policy: same-origin`, and no `Server` header.
+- **Rate limiting** per visitor (600 requests a minute by default), never applied to devices at home.
+- **Home only**: only devices on your home networks (and Tailscale, if you like) get in. Best for admin pages. The page warns you if Docker hides real visitor addresses, which would make this ineffective.
+- **Login wall**, asked before the site's own login:
+  - **Sign-in with two-factor**: one sign-in page (e.g. `auth.example.com`, served by Caddy with HTTPS) for all your sites, using Caddymium accounts. Signing in once covers every protected site for the session length (7 days by default). Accounts without an authenticator set one up at their first sign-in. Add family and friends as **member** accounts: they can use your sites but not the panel. A site can be limited to certain accounts. Active sign-ins are listed, and you can sign everyone out.
+  - **Shared password**: the browser asks for a name and password (basic auth). No two-factor.
+
+**Phone and TV apps** (Bitwarden, Jellyfin, Plex, Immich) can't get past a login wall. Pick the app for the site (the templates do it for you) and the wall covers only the browser pages, while the paths the app uses go to the app's own sign-in:
+
+| App | Behind the wall | Left to the app |
+| --- | --- | --- |
+| Vaultwarden / Bitwarden | web vault, `/admin` | `/api`, `/identity`, `/notifications`, `/icons`, `/attachments` |
+| Jellyfin, Plex | the web player (`/web`) | everything the apps use |
+| Immich | the web interface | `/api` |
+
+So turn on the app's own two-factor too (Vaultwarden has it; for Plex it's on your plex.tv account), keep CrowdSec and rate limiting on, and use the sign-in wall for everything browser-only. At home, point TV apps at the server's local address; away, Tailscale gets them through a home-only site.
 
 ### Forward proxy
 
@@ -163,6 +187,9 @@ backend/src/
   registry/     DNS providers + features mapped to Caddy modules/versions
   plugins.rs    plugin manager: download service, verify, swap, restart
   supervisor.rs all-in-one mode: runs Caddy as a child process and keeps it up
+  shields.rs    site protections: defaults, overrides, app presets, crawler lists
+  crowdsec.rs   built-in CrowdSec: install from the official image, set up, run, update
+  server/sso.rs sign-in page and forward-auth check for the login wall
   ddns.rs       dynamic DNS status (public IP vs. records)
   server/       REST API + auth (sessions, CSRF, TOTP, API keys, roles)
   caddy/        caddy CLI runner + admin API client

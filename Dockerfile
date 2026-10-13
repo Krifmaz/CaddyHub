@@ -40,7 +40,7 @@ RUN CADDYMIUM_VERSION="$VERSION" cargo zigbuild --release --locked --target "$(c
 # `caddy add-package` uses). More plugins can be added later from the panel.
 FROM --platform=$BUILDPLATFORM alpine:3 AS caddy
 ARG TARGETARCH
-ARG CADDY_PLUGINS="github.com/caddy-dns/cloudflare github.com/caddy-dns/porkbun github.com/caddy-dns/duckdns github.com/caddy-dns/namecheap github.com/caddy-dns/route53 github.com/caddy-dns/digitalocean github.com/caddy-dns/hetzner github.com/caddy-dns/desec github.com/caddy-dns/ovh github.com/caddy-dns/gandi github.com/caddy-dns/acmedns github.com/mholt/caddy-ratelimit"
+ARG CADDY_PLUGINS="github.com/caddy-dns/cloudflare github.com/caddy-dns/porkbun github.com/caddy-dns/duckdns github.com/caddy-dns/namecheap github.com/caddy-dns/route53 github.com/caddy-dns/digitalocean github.com/caddy-dns/hetzner github.com/caddy-dns/desec github.com/caddy-dns/ovh github.com/caddy-dns/gandi github.com/caddy-dns/acmedns github.com/mholt/caddy-ratelimit github.com/hslatman/caddy-crowdsec-bouncer"
 RUN apk add --no-cache curl && q=""; for p in $CADDY_PLUGINS; do q="$q&p=$p"; done \
     && curl -fsSL --retry 3 -o /caddy "https://caddyserver.com/api/download?os=linux&arch=${TARGETARCH}${q}" \
     && chmod 0755 /caddy && test "$(stat -c %s /caddy)" -gt 10000000

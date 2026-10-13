@@ -305,8 +305,163 @@ pub struct AccessConfig {
     pub forward_auth: Option<ForwardAuth>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit: Option<RateLimit>,
+    /// Legacy per-site CrowdSec switch; `shields.crowdsec` supersedes it.
     #[serde(skip_serializing_if = "is_false")]
     pub crowdsec: bool,
+    /// Overrides of the protections set for all sites on the Security page.
+    pub shields: ShieldOverrides,
+}
+
+/// Protections that can be turned on for every site at once (Security
+/// page) and overridden per site.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct Shields {
+    /// Block IPs CrowdSec has flagged (needs CrowdSec on the Security page).
+    pub crowdsec: bool,
+    /// Block AI crawlers and scrapers by user agent (and every known
+    /// crawler with `SecuritySettings.bots_block_all`).
+    pub bots: bool,
+    /// Limit requests per visitor (numbers on the Security page).
+    pub rate_limit: bool,
+    /// Only allow visitors from the home networks.
+    pub home_only: bool,
+    /// Login wall: "" (none), "basic" (shared accounts) or "sso" (sign-in
+    /// with Caddymium accounts and two-factor).
+    pub login: String,
+    /// Keep the site out of search engines and AI datasets (robots.txt,
+    /// X-Robots-Tag) and send privacy headers.
+    pub privacy: bool,
+}
+
+/// Per-site overrides of `Shields`: None follows the default.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct ShieldOverrides {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub crowdsec: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bots: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub home_only: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub login: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub privacy: Option<bool>,
+    /// Accounts allowed through the sign-in wall; empty = every account.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sso_users: Vec<String>,
+    /// How phone/TV apps reach the site past the login wall: "" (they
+    /// don't; the wall covers everything), a preset (vaultwarden, jellyfin,
+    /// plex, immich) or "custom".
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub apps: String,
+    /// For "custom": "except" (wall everywhere but `app_paths`) or "only"
+    /// (wall only on `app_paths`).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub app_mode: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub app_paths: Vec<String>,
+}
+
+/// The Security page: defaults for every site plus shared settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SecuritySettings {
+    /// Protections every site gets unless it overrides them.
+    pub defaults: Shields,
+    /// Networks that count as home (home-only access, rate-limit exemption).
+    pub home_networks: Vec<String>,
+    /// Also count Tailscale addresses as home.
+    pub tailscale_is_home: bool,
+    /// Requests per visitor per window when rate limiting is on.
+    pub rate_limit_events: i64,
+    pub rate_limit_window: String,
+    /// Never rate-limit visitors from the home networks.
+    pub rate_limit_exempt_home: bool,
+    /// Shared accounts for the "basic" login wall (bcrypt hashes).
+    pub basic_auth_users: Vec<BasicAuthUser>,
+    pub sso: SsoSettings,
+    /// Besides AI crawlers, also block search engines and SEO crawlers.
+    pub bots_block_all: bool,
+    /// User-agent fragments that are never blocked (e.g. an uptime monitor).
+    pub bots_allow: Vec<String>,
+}
+
+impl Default for SecuritySettings {
+    fn default() -> Self {
+        SecuritySettings {
+            defaults: Shields {
+                crowdsec: true,
+                bots: true,
+                rate_limit: false,
+                home_only: false,
+                login: String::new(),
+                privacy: true,
+            },
+            home_networks: vec![
+                "10.0.0.0/8".into(),
+                "172.16.0.0/12".into(),
+                "192.168.0.0/16".into(),
+                "127.0.0.0/8".into(),
+                "fc00::/7".into(),
+                "::1/128".into(),
+            ],
+            tailscale_is_home: true,
+            rate_limit_events: 600,
+            rate_limit_window: "1m".into(),
+            rate_limit_exempt_home: true,
+            basic_auth_users: Vec::new(),
+            sso: SsoSettings::default(),
+            bots_block_all: false,
+            bots_allow: Vec::new(),
+        }
+    }
+}
+
+/// Sign-in with Caddymium accounts in front of sites (forward auth to the
+/// panel), with two-factor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SsoSettings {
+    /// Hostname of the sign-in page, e.g. auth.example.com. It must share a
+    /// parent domain with the protected sites.
+    pub portal_host: String,
+    /// Domain the sign-in cookie is valid for; empty = the portal's parent
+    /// domain (auth.example.com -> example.com).
+    pub cookie_domain: String,
+    /// How long a sign-in lasts.
+    pub session_hours: i64,
+    /// Accounts without two-factor can't sign in.
+    pub require_2fa: bool,
+}
+
+impl Default for SsoSettings {
+    fn default() -> Self {
+        SsoSettings {
+            portal_host: String::new(),
+            cookie_domain: String::new(),
+            session_hours: 24 * 7,
+            require_2fa: true,
+        }
+    }
+}
+
+impl SsoSettings {
+    /// The cookie domain in effect.
+    pub fn effective_cookie_domain(&self) -> String {
+        let d = self.cookie_domain.trim().trim_start_matches('.');
+        if !d.is_empty() {
+            return d.to_ascii_lowercase();
+        }
+        let p = self.portal_host.trim().to_ascii_lowercase();
+        match p.split_once('.') {
+            Some((_, rest)) if rest.contains('.') => rest.to_string(),
+            _ => p,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -458,6 +613,9 @@ pub struct Settings {
     /// Dynamic DNS (caddy-dynamicdns plugin).
     pub ddns: DdnsSettings,
 
+    /// Site protections (Security page).
+    pub security: SecuritySettings,
+
     /// Verbatim text placed inside the global options block (e.g. options
     /// the importer could not map). Validated before apply.
     pub raw_global: String,
@@ -477,7 +635,11 @@ pub struct TrustedProxies {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CrowdSecSettings {
+    /// Use an external CrowdSec (api_url + key).
     pub enabled: bool,
+    /// Run CrowdSec inside Caddymium (crowdsec.rs); takes precedence over
+    /// an external one.
+    pub builtin: bool,
     pub api_url: String,
     /// "env:NAME", "file:/path" or "secret:<name>"
     pub api_key_ref: String,
@@ -574,6 +736,7 @@ impl Default for Settings {
             log_roll_keep: 5,
             crowdsec: CrowdSecSettings {
                 enabled: false,
+                builtin: false,
                 api_url: "http://crowdsec:8080".into(),
                 api_key_ref: String::new(),
                 ticker_interval: "15s".into(),
@@ -602,6 +765,7 @@ impl Default for Settings {
             session_timeout_minutes: 60,
             discovery: false,
             updates: UpdateSettings::default(),
+            security: SecuritySettings::default(),
             ddns: DdnsSettings {
                 check_interval: "5m".into(),
                 ipv4: true,

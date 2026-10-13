@@ -3,7 +3,7 @@
   import {
     Globe, ShieldCheck, Braces, FileInput, Rocket, History as HistoryIcon, FileCode, Settings as SettingsIcon,
     Users as UsersIcon, Bell, ScrollText, Search, Menu, LogOut, Sun, Moon, Monitor, CircleCheck, CircleX, Info, ArrowRight, X,
-    Puzzle, Signal,
+    Puzzle, Signal, Shield,
   } from '@lucide/svelte'
   import { api, setCSRF, handleUnauthorized } from './lib/api.js'
   import { app, refreshStatus, can } from './lib/state.svelte.js'
@@ -27,6 +27,7 @@
   import Account from './pages/Account.svelte'
   import Plugins from './pages/Plugins.svelte'
   import Ddns from './pages/Ddns.svelte'
+  import Security from './pages/Security.svelte'
 
   let loading = $state(true)
   let menuOpen = $state(false)
@@ -63,6 +64,7 @@
       { path: '/sites', label: 'Sites', icon: Globe },
       { path: '/domains', label: 'Domains & DNS', icon: ShieldCheck, admin: true },
       { path: '/ddns', label: 'Dynamic DNS', icon: Signal, admin: true },
+      { path: '/security', label: 'Security', icon: Shield, admin: true },
       { path: '/snippets', label: 'Snippets & raw', icon: Braces },
       { path: '/import', label: 'Import', icon: FileInput, admin: true },
     ] },
@@ -195,6 +197,8 @@
           <Plugins />
         {:else if page === 'ddns'}
           <Ddns />
+        {:else if page === 'security'}
+          <Security />
         {:else}
           <div class="empty"><h2>Page not found</h2><a href="#/sites">Go to sites</a></div>
         {/if}

@@ -213,20 +213,109 @@ impl Store {
             .execute("DELETE FROM sessions WHERE id = ?", params![id]);
     }
 
-    /// Removes all sessions of a user (e.g. password change).
+    /// Removes all sessions of a user (e.g. password change), including the
+    /// user's sign-ins to protected sites.
     pub fn delete_user_sessions(&self, uid: i64, except: &str) {
-        let _ = self.conn().execute(
+        let conn = self.conn();
+        let _ = conn.execute(
             "DELETE FROM sessions WHERE user_id = ? AND id != ?",
             params![uid, except],
         );
+        let _ = conn.execute("DELETE FROM sso_sessions WHERE user_id = ?", params![uid]);
     }
 
     /// Deletes expired sessions.
     pub fn prune_sessions(&self) {
-        let _ = self.conn().execute(
-            "DELETE FROM sessions WHERE expires_at < ?",
-            params![ts(&Utc::now())],
+        let now = ts(&Utc::now());
+        let conn = self.conn();
+        let _ = conn.execute("DELETE FROM sessions WHERE expires_at < ?", params![now]);
+        let _ = conn.execute(
+            "DELETE FROM sso_sessions WHERE expires_at < ?",
+            params![now],
         );
+    }
+
+    // ---------------------------------------------------------------- site sign-ins
+
+    /// Stores a sign-in to protected sites.
+    pub fn create_sso_session(&self, se: &SsoSession) -> Result<()> {
+        self.conn().execute(
+            "INSERT INTO sso_sessions(id, user_id, created_at, expires_at, last_seen, ip, user_agent, mfa) VALUES(?,?,?,?,?,?,?,?)",
+            params![se.id, se.user_id, ts(&se.created_at), ts(&se.expires_at), ts(&se.last_seen), se.ip, se.user_agent, se.mfa as i64],
+        )?;
+        Ok(())
+    }
+
+    /// A sign-in by ID hash.
+    pub fn get_sso_session(&self, id: &str) -> Result<SsoSession> {
+        self.conn()
+            .query_row(
+                "SELECT id, user_id, created_at, expires_at, last_seen, ip, user_agent, mfa FROM sso_sessions WHERE id = ?",
+                params![id],
+                |r| {
+                    let mfa: i64 = r.get(7)?;
+                    Ok(SsoSession {
+                        id: r.get(0)?,
+                        user_id: r.get(1)?,
+                        created_at: col_ts(r, 2)?,
+                        expires_at: col_ts(r, 3)?,
+                        last_seen: col_ts(r, 4)?,
+                        ip: r.get(5)?,
+                        user_agent: r.get(6)?,
+                        mfa: mfa == 1,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or_else(|| NotFound.into())
+    }
+
+    /// Updates last_seen of a sign-in.
+    pub fn touch_sso_session(&self, id: &str, t: DateTime<Utc>) {
+        let _ = self.conn().execute(
+            "UPDATE sso_sessions SET last_seen = ? WHERE id = ?",
+            params![ts(&t), id],
+        );
+    }
+
+    /// Ends one sign-in.
+    pub fn delete_sso_session(&self, id: &str) {
+        let _ = self
+            .conn()
+            .execute("DELETE FROM sso_sessions WHERE id = ?", params![id]);
+    }
+
+    /// Ends every sign-in (all users). Returns how many there were.
+    pub fn delete_all_sso_sessions(&self) -> usize {
+        self.conn()
+            .execute("DELETE FROM sso_sessions", [])
+            .unwrap_or(0)
+    }
+
+    /// Active sign-ins (newest first) with their usernames.
+    pub fn sso_sessions(&self) -> Result<Vec<(SsoSession, String)>> {
+        let conn = self.conn();
+        let mut st = conn.prepare(
+            "SELECT s.id, s.user_id, s.created_at, s.expires_at, s.last_seen, s.ip, s.user_agent, s.mfa, u.username \
+             FROM sso_sessions s JOIN users u ON u.id = s.user_id WHERE s.expires_at >= ? ORDER BY s.last_seen DESC LIMIT 200",
+        )?;
+        let rows = st.query_map(params![ts(&Utc::now())], |r| {
+            let mfa: i64 = r.get(7)?;
+            Ok((
+                SsoSession {
+                    id: r.get(0)?,
+                    user_id: r.get(1)?,
+                    created_at: col_ts(r, 2)?,
+                    expires_at: col_ts(r, 3)?,
+                    last_seen: col_ts(r, 4)?,
+                    ip: r.get(5)?,
+                    user_agent: r.get(6)?,
+                    mfa: mfa == 1,
+                },
+                r.get::<_, String>(8)?,
+            ))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     // ---------------------------------------------------------------- API keys
@@ -306,6 +395,21 @@ pub struct Session {
     pub ip: String,
     pub user_agent: String,
     pub pending_2fa: bool,
+}
+
+/// A sign-in to sites behind the login wall. ID is the SHA-256 of the
+/// cookie token.
+#[derive(Debug, Clone, Default)]
+pub struct SsoSession {
+    pub id: String,
+    pub user_id: i64,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+    pub ip: String,
+    pub user_agent: String,
+    /// Signed in with a two-factor code.
+    pub mfa: bool,
 }
 
 /// A scripted-access key. Only its hash is stored.

@@ -36,8 +36,18 @@ api.example.com {
 		}
 		format json
 	}
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
 	route {
 		crowdsec
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
 		rate_limit {
 			zone site_1 {
 				key {client_ip}

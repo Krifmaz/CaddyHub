@@ -7,7 +7,7 @@ mod users;
 pub use misc::Channel;
 #[allow(unused_imports)]
 pub use misc::{Build, Discovered, Template};
-pub use users::{ApiKey, Session, User};
+pub use users::{ApiKey, Session, SsoSession, User};
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, NaiveDateTime, Utc};

@@ -39,7 +39,7 @@
     if (!confirm(`Revoke key ${k.name}? Scripts using it stop working.`)) return
     try { await api.del('/api-keys/' + k.id); load() } catch (e) { toastErr(e) }
   }
-  const roleHelp = { admin: 'everything, including users, domains and settings', editor: 'edit sites and apply changes', viewer: 'read-only' }
+  const roleHelp = { admin: 'everything, including users, domains and settings', editor: 'edit sites and apply changes', viewer: 'read-only', member: 'sign in to your protected sites only, no panel' }
 </script>
 
 <div class="page-head">
@@ -98,7 +98,7 @@
   <Modal title={edit.id ? 'Edit user' : 'Add user'} onclose={() => (edit = null)}>
     <label class="field"><span>Username</span><input type="text" bind:value={edit.username} /></label>
     <label class="field"><span>Role</span>
-      <select bind:value={edit.role}>{#each ['admin', 'editor', 'viewer'] as r}<option value={r}>{r}: {roleHelp[r]}</option>{/each}</select></label>
+      <select bind:value={edit.role}>{#each ['admin', 'editor', 'viewer', 'member'] as r}<option value={r}>{r}: {roleHelp[r]}</option>{/each}</select></label>
     <label class="field"><span>{edit.id ? 'New password (leave empty to keep)' : 'Password'}</span><input type="password" bind:value={edit.password} autocomplete="new-password" /></label>
     {#if edit.id}
       <label class="check"><input type="checkbox" bind:checked={edit.disabled} /> Disabled (can't log in)</label>

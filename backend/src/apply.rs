@@ -167,6 +167,7 @@ impl Pipeline {
 
     /// Loads the model and resolves secrets into placeholders.
     pub fn build_input(&self) -> Result<Input> {
+        let (ai_bots, _) = crate::shields::ai_bots(&self.store);
         let mut input = Input {
             settings: self.store.settings(),
             sites: self.store.sites()?,
@@ -177,6 +178,7 @@ impl Pipeline {
             env: self.env.clone(),
             ..Default::default()
         };
+        input.env.ai_bots = ai_bots;
         if let Some(cached) = self
             .store
             .kv_get_json::<BTreeMap<String, Vec<String>>>("trusted_proxy_ranges")
@@ -224,7 +226,19 @@ impl Pipeline {
                 keep.push("acme-eab-mac".into());
             }
         }
-        if input.settings.crowdsec.enabled {
+        // Built-in CrowdSec (crowdsec.rs): local API on loopback, key kept by
+        // the panel. It takes precedence over an external one.
+        if input.settings.crowdsec.builtin {
+            input.settings.crowdsec.enabled = true;
+            input.settings.crowdsec.api_url = crate::crowdsec::LAPI_URL.to_string();
+            if let Some(v) = self.store.secret(crate::crowdsec::BOUNCER_SECRET) {
+                input.env.crowdsec_key_ref = self.materialize("crowdsec-builtin-key", &v)?;
+                keep.push("crowdsec-builtin-key".into());
+            } else {
+                // Not set up yet: no bouncer until it is.
+                input.settings.crowdsec.enabled = false;
+            }
+        } else if input.settings.crowdsec.enabled {
             if let Some(ph) = secrets::ref_placeholder(&input.settings.crowdsec.api_key_ref) {
                 input.env.crowdsec_key_ref = ph;
             } else if let Some(v) = self.store.secret("crowdsec_api_key") {
@@ -328,6 +342,50 @@ impl Pipeline {
     }
 
     /// Runs the full pipeline for the current model.
+    /// Whether the model differs from what was last applied.
+    pub fn pending(&self) -> bool {
+        match (self.generate(), self.store.last_good()) {
+            (Ok((out, _)), Ok(lg)) => out.caddyfile != lg.caddyfile,
+            _ => true,
+        }
+    }
+
+    /// Applies a change made by the panel itself (a refreshed crawler list,
+    /// CrowdSec becoming ready), but only when `was_pending` is false, so
+    /// edits waiting for the user's review are never applied behind their
+    /// back. Returns whether an apply happened.
+    pub async fn apply_if_clean(&self, was_pending: bool, message: &str) -> bool {
+        if was_pending || self.store.last_good().is_err() || !self.pending() {
+            return false;
+        }
+        match self
+            .apply(Options {
+                user: "caddymium".into(),
+                message: message.into(),
+                ..Default::default()
+            })
+            .await
+        {
+            Ok(r) if r.status == "applied" => {
+                tracing::info!(message, "applied automatically");
+                true
+            }
+            Ok(r) => {
+                tracing::warn!(
+                    message,
+                    status = r.status,
+                    err = r.message,
+                    "automatic apply did not go through"
+                );
+                false
+            }
+            Err(e) => {
+                tracing::warn!(message, err = %e, "automatic apply failed");
+                false
+            }
+        }
+    }
+
     pub async fn apply(&self, opt: Options) -> Result<ApplyResult> {
         let _g = self.lock.lock().await;
         let (out, input) = self.generate()?;

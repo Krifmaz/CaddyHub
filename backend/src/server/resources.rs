@@ -25,6 +25,7 @@ fn non_empty(v: &[String]) -> Vec<String> {
 /// sends new passwords in the hash field).
 pub fn normalize_site(st: &mut Site) -> Result<(), String> {
     st.name = st.name.trim().to_string();
+    crate::shields::validate_overrides(&mut st.config.access.shields)?;
     let mut hosts: Vec<String> = Vec::new();
     for h in &st.hosts {
         let mut h = h.trim().to_ascii_lowercase();
@@ -697,6 +698,8 @@ pub async fn put_settings(
         s.session_timeout_minutes = 60;
     }
     s.cert_alert_days.sort();
+    crate::shields::validate_security(&mut s.security)
+        .map_err(|e| ApiError::bad(format!("Security: {e}")))?;
     if s.ddns.enabled {
         if let Some(cid) = s.ddns.credential_id {
             if st.store.credential(cid).is_err() {

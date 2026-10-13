@@ -591,6 +591,123 @@ pub(crate) fn cases() -> Vec<Case> {
                 }
             })
         },
+        Case {
+            needs: vec![
+                "http.handlers.rate_limit",
+                "crowdsec",
+                "http.handlers.crowdsec",
+            ],
+            ..case("shields", {
+                let mut s = base_settings();
+                s.crowdsec = CrowdSecSettings {
+                    enabled: true,
+                    api_url: "http://127.0.0.1:8081".into(),
+                    ticker_interval: "15s".into(),
+                    ..Default::default()
+                };
+                s.security = SecuritySettings {
+                    defaults: Shields {
+                        crowdsec: true,
+                        bots: true,
+                        rate_limit: true,
+                        privacy: true,
+                        login: "sso".into(),
+                        ..Default::default()
+                    },
+                    home_networks: vec!["10.0.1.0/24".into()],
+                    tailscale_is_home: true,
+                    rate_limit_events: 300,
+                    rate_limit_window: "1m".into(),
+                    rate_limit_exempt_home: true,
+                    basic_auth_users: vec![BasicAuthUser {
+                        username: "family".into(),
+                        hash: "$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG".into(),
+                    }],
+                    sso: SsoSettings {
+                        portal_host: "auth.example.com".into(),
+                        ..Default::default()
+                    },
+                    bots_block_all: true,
+                    bots_allow: vec!["Uptime-Kuma".into()],
+                };
+                let mut e = base_env();
+                e.crowdsec_key_ref = "{file./run/caddyhub/secrets/crowdsec-api_key}".into();
+                e.ai_bots = vec![
+                    "GPTBot".into(),
+                    "ClaudeBot".into(),
+                    "Brightbot 1.0".into(),
+                    "bigsur.ai".into(),
+                ];
+                let with = |o: ShieldOverrides| SiteConfig {
+                    proxy: proxy(&["app:8080"]),
+                    access: AccessConfig {
+                        shields: o,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
+                Input {
+                    settings: s,
+                    caps: full_caps(),
+                    env: e,
+                    sites: vec![
+                        // every default, sign-in with the Vaultwarden app paths open
+                        site(
+                            1,
+                            "Vault",
+                            &["vault.example.com"],
+                            KIND_PROXY,
+                            with(ShieldOverrides {
+                                apps: "vaultwarden".into(),
+                                ..Default::default()
+                            }),
+                        ),
+                        // home only, no login wall, Jellyfin app preset unused
+                        site(
+                            2,
+                            "Admin",
+                            &["admin.example.com"],
+                            KIND_PROXY,
+                            with(ShieldOverrides {
+                                home_only: Some(true),
+                                login: Some(String::new()),
+                                rate_limit: Some(false),
+                                ..Default::default()
+                            }),
+                        ),
+                        // shared password accounts, wall only on the web UI
+                        site(
+                            3,
+                            "Media",
+                            &["media.example.com"],
+                            KIND_PROXY,
+                            with(ShieldOverrides {
+                                login: Some("basic".into()),
+                                apps: "jellyfin".into(),
+                                sso_users: vec!["alice".into()],
+                                ..Default::default()
+                            }),
+                        ),
+                        // everything off
+                        site(
+                            4,
+                            "Open",
+                            &["open.example.com"],
+                            KIND_PROXY,
+                            with(ShieldOverrides {
+                                crowdsec: Some(false),
+                                bots: Some(false),
+                                rate_limit: Some(false),
+                                privacy: Some(false),
+                                login: Some(String::new()),
+                                ..Default::default()
+                            }),
+                        ),
+                    ],
+                    ..Default::default()
+                }
+            })
+        },
         case("missing_plugins_skipped", {
             let mut caps = full_caps();
             caps.modules.remove("http.handlers.rate_limit");

@@ -8,6 +8,7 @@ mod backup;
 mod caddy;
 mod caddyfile;
 mod config;
+mod crowdsec;
 mod ddns;
 mod diff;
 mod generator;
@@ -20,6 +21,7 @@ mod registry;
 mod scan;
 mod secrets;
 mod server;
+mod shields;
 mod store;
 mod supervisor;
 mod updates;
@@ -122,8 +124,19 @@ async fn run(cfg: config::Config) -> Result<()> {
         cfg.github_token.clone(),
     ));
 
+    // Built-in CrowdSec lives in the data volume; it needs Caddy in the same
+    // container (all-in-one), since its API listens on loopback.
+    let crowdsec = Arc::new(crowdsec::Manager::new(
+        store.clone(),
+        cfg.data_dir.join("crowdsec"),
+        cfg.log_dir.clone(),
+        cfg.github_token.clone(),
+        cfg.manage_caddy,
+    ));
     let state = server::AppState::new(server::AppParts {
         store: store.clone(),
+        crowdsec: crowdsec.clone(),
+        log_dir: cfg.log_dir.clone(),
         pipeline,
         runner: runner.clone(),
         admin,
@@ -174,6 +187,15 @@ async fn run(cfg: config::Config) -> Result<()> {
 
     // Update checker and automatic Caddy updates (settings decide what it does).
     tokio::spawn(state.updates.clone().run(stop_rx.clone()));
+    // Built-in CrowdSec (runs only when turned on) and its daily chores.
+    tokio::spawn(crowdsec.clone().run(stop_rx.clone()));
+    tokio::spawn(crowdsec.clone().chores_loop(stop_rx.clone()));
+    // AI crawler list refresh.
+    tokio::spawn(shields::refresh_loop(
+        store.clone(),
+        state.pipeline.clone(),
+        stop_rx.clone(),
+    ));
 
     // Background jobs: Caddy capability detection and session cleanup.
     {

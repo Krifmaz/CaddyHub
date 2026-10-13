@@ -43,8 +43,17 @@ async fn start() -> TestServer {
         String::new(),
         String::new(),
     ));
+    let crowdsec = Arc::new(crate::crowdsec::Manager::new(
+        store.clone(),
+        dir.path().join("crowdsec"),
+        String::new(),
+        String::new(),
+        false,
+    ));
     let st = AppState::new(AppParts {
         store: store.clone(),
+        crowdsec,
+        log_dir: String::new(),
         pipeline,
         runner,
         admin,
@@ -542,4 +551,231 @@ async fn backup_restore_and_discard() {
         viewer.call("POST", "/api/config/discard", None).await.0,
         403
     );
+}
+
+/// The whole sign-in flow without Caddy: redirect to the sign-in page,
+/// password, first-time two-factor setup, the cookie for the parent domain,
+/// and the verify answers Caddy's forward_auth gets.
+#[tokio::test]
+async fn sso_sign_in_flow() {
+    let ts = start().await;
+    let mut admin = TestClient::new(&ts.base);
+    admin
+        .call(
+            "POST",
+            "/api/setup",
+            Some(json!({"username": "admin", "password": "long enough password"})),
+        )
+        .await;
+    let (code, _) = admin
+        .call(
+            "POST",
+            "/api/users",
+            Some(json!({"username": "kid", "password": "member password 1", "role": "member"})),
+        )
+        .await;
+    assert_eq!(code, 200);
+    let (code, sec) = admin.call("GET", "/api/security", None).await;
+    assert_eq!(code, 200, "{sec}");
+    let mut body = json!({"security": sec["security"].clone()});
+    body["security"]["sso"]["portal_host"] = json!("auth.example.com");
+    body["security"]["defaults"]["login"] = json!("sso");
+    let (code, out) = admin.call("PUT", "/api/security", Some(body)).await;
+    assert_eq!(code, 200, "{out}");
+    assert_eq!(out["sso"]["cookie_domain"], "example.com");
+
+    // A member can't use the panel.
+    let mut kid = TestClient::new(&ts.base);
+    let (code, _) = kid
+        .call(
+            "POST",
+            "/api/login",
+            Some(json!({"username": "kid", "password": "member password 1"})),
+        )
+        .await;
+    assert_eq!(code, 403);
+
+    let http = crate::httpc::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+    let fwd = |req: reqwest::RequestBuilder| {
+        req.header("x-forwarded-host", "app.example.com")
+            .header("x-forwarded-proto", "https")
+            .header("x-forwarded-uri", "/movies?x=1")
+    };
+    // Not signed in: sent to the sign-in page with the way back.
+    let r = fwd(http.get(format!("{}/api/sso/verify?site=0", ts.base)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 302);
+    let loc = r.headers()["location"].to_str().unwrap().to_string();
+    assert!(
+        loc.starts_with("https://auth.example.com/sso/login?rd="),
+        "{loc}"
+    );
+    assert!(loc.contains("app.example.com%2Fmovies"), "{loc}");
+
+    let field = |html: &str, name: &str| -> String {
+        let key = format!("name=\"{name}\" value=\"");
+        let i = html
+            .find(&key)
+            .unwrap_or_else(|| panic!("no {name} in {html}"))
+            + key.len();
+        html[i..i + html[i..].find('"').unwrap()].to_string()
+    };
+    let set_cookie = |r: &reqwest::Response, name: &str| -> Option<String> {
+        r.headers()
+            .get_all("set-cookie")
+            .iter()
+            .map(|v| v.to_str().unwrap().to_string())
+            .find(|c| c.starts_with(&format!("{name}=")))
+    };
+    let rd = "https://app.example.com/movies?x=1";
+    let r = http
+        .get(format!(
+            "{}/sso/login?rd={}",
+            ts.base,
+            url::form_urlencoded::byte_serialize(rd.as_bytes()).collect::<String>()
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let csrf_c = set_cookie(&r, "caddymium_sso_csrf").unwrap();
+    let csrf_c = csrf_c.split(';').next().unwrap().to_string();
+    let html = r.text().await.unwrap();
+    let csrf = field(&html, "csrf");
+
+    // Wrong password, then right password: two-factor setup comes first.
+    let post = |path: &str, form: Vec<(&str, String)>, cookie: &str| {
+        let mut enc = url::form_urlencoded::Serializer::new(String::new());
+        for (k, v) in &form {
+            enc.append_pair(k, v);
+        }
+        http.post(format!("{}{path}", ts.base))
+            .header("cookie", cookie.to_string())
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(enc.finish())
+            .send()
+    };
+    let r = post(
+        "/sso/login",
+        vec![
+            ("username", "kid".into()),
+            ("password", "nope".into()),
+            ("rd", rd.into()),
+            ("csrf", csrf.clone()),
+        ],
+        &csrf_c,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status().as_u16(), 401);
+    let csrf_c = set_cookie(&r, "caddymium_sso_csrf")
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap()
+        .to_string();
+    let csrf = field(&r.text().await.unwrap(), "csrf");
+    let r = post(
+        "/sso/login",
+        vec![
+            ("username", "kid".into()),
+            ("password", "member password 1".into()),
+            ("rd", rd.into()),
+            ("csrf", csrf),
+        ],
+        &csrf_c,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let csrf_c = set_cookie(&r, "caddymium_sso_csrf")
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap()
+        .to_string();
+    let html = r.text().await.unwrap();
+    assert!(html.contains("Set up two-factor"), "{html}");
+    assert!(html.contains("<svg"), "QR code shown");
+    let secret = {
+        let i = html.find("<code>").unwrap() + 6;
+        html[i..i + html[i..].find('<').unwrap()].to_string()
+    };
+    let code = crate::auth::totp_code(&secret, chrono::Utc::now().timestamp());
+    let r = post(
+        "/sso/enroll",
+        vec![
+            ("id", field(&html, "id")),
+            ("code", code),
+            ("rd", rd.into()),
+            ("csrf", field(&html, "csrf")),
+        ],
+        &csrf_c,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status().as_u16(), 303);
+    assert_eq!(r.headers()["location"], rd);
+    let sso = set_cookie(&r, "caddymium_sso").unwrap();
+    assert!(sso.contains("Domain=example.com"), "{sso}");
+    assert!(sso.contains("HttpOnly") && sso.contains("Secure"), "{sso}");
+    let sso = sso.split(';').next().unwrap().to_string();
+
+    // Signed in: Caddy gets the user.
+    let r = fwd(http.get(format!("{}/api/sso/verify?site=0", ts.base)))
+        .header("cookie", sso.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    assert_eq!(r.headers()["remote-user"], "kid");
+
+    // A site limited to other accounts refuses this one.
+    let (code, site) = admin
+        .call(
+            "POST",
+            "/api/sites",
+            Some(json!({"name": "only-mom", "hosts": ["mom.example.com"], "kind": "proxy",
+                "config": {"proxy": {"upstreams": ["127.0.0.1:3000"]}, "access": {"shields": {"sso_users": ["mom"]}}}})),
+        )
+        .await;
+    assert_eq!(code, 201, "{site}");
+    let r = fwd(http.get(format!("{}/api/sso/verify?site={}", ts.base, site["id"])))
+        .header("cookie", sso.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 403);
+
+    // Redirects only go back to sites under the cookie domain.
+    let r = http
+        .get(format!(
+            "{}/sso/login?rd=https%3A%2F%2Fevil.com%2F",
+            ts.base
+        ))
+        .header("cookie", sso.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 200, "no redirect to a foreign site");
+
+    // The admin sees the sign-in and can end it.
+    let (_, list) = admin.call("GET", "/api/security/sessions", None).await;
+    assert_eq!(list[0]["username"], "kid");
+    assert_eq!(list[0]["mfa"], true);
+    let (code, _) = admin
+        .call("DELETE", "/api/security/sessions/all", None)
+        .await;
+    assert_eq!(code, 200);
+    let r = fwd(http.get(format!("{}/api/sso/verify?site=0", ts.base)))
+        .header("cookie", sso)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status().as_u16(), 302, "signed out everywhere");
 }

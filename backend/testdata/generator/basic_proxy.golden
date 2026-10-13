@@ -26,5 +26,17 @@ app.example.com {
 		}
 		format json
 	}
-	reverse_proxy app:8080
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy app:8080
+	}
 }

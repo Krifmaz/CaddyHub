@@ -11,6 +11,8 @@ mod netscan;
 mod ops;
 mod plugin_handlers;
 mod resources;
+mod security_handlers;
+mod sso;
 
 #[cfg(test)]
 mod tests;
@@ -66,6 +68,8 @@ pub struct AppState {
     pub caps: Arc<RwLock<Capabilities>>,
     pub plugins: Arc<plugins::Manager>,
     pub updates: Arc<updates::Checker>,
+    pub crowdsec: Arc<crate::crowdsec::Manager>,
+    pub log_dir: String,
     pub version: String,
     /// optional token required by first-run setup
     pub setup_token: String,
@@ -81,6 +85,9 @@ pub struct AppState {
 
 pub struct AppParts {
     pub store: Arc<Store>,
+    pub crowdsec: Arc<crate::crowdsec::Manager>,
+    /// Caddy's log directory (visitor check on the Security page).
+    pub log_dir: String,
     pub pipeline: Arc<Pipeline>,
     pub runner: Arc<Runner>,
     pub admin: Arc<Admin>,
@@ -112,6 +119,8 @@ impl AppState {
             caps: p.caps,
             plugins: p.plugins,
             updates,
+            crowdsec: p.crowdsec,
+            log_dir: p.log_dir,
             version: p.version,
             setup_token: p.setup_token,
             trust_xff: p.trust_xff,
@@ -569,7 +578,8 @@ pub fn router(st: Arc<AppState>) -> Router {
         .route("/setup", post(auth_handlers::setup))
         .route("/login", post(auth_handlers::login))
         .route("/login/totp", post(auth_handlers::login_totp))
-        .route("/logout", post(auth_handlers::logout));
+        .route("/logout", post(auth_handlers::logout))
+        .route("/sso/verify", get(sso::verify));
 
     let viewer = Router::new()
         .route("/me/password", post(auth_handlers::change_password))
@@ -617,6 +627,39 @@ pub fn router(st: Arc<AppState>) -> Router {
         .route_layer(layer(E));
 
     let admin = Router::new()
+        .route(
+            "/security",
+            get(security_handlers::get).put(security_handlers::put),
+        )
+        .route(
+            "/security/sites/{id}",
+            axum::routing::put(security_handlers::put_site),
+        )
+        .route(
+            "/security/bots/refresh",
+            post(security_handlers::refresh_bots),
+        )
+        .route("/security/sessions", get(security_handlers::sessions))
+        .route(
+            "/security/sessions/{id}",
+            axum::routing::delete(security_handlers::end_session),
+        )
+        .route("/crowdsec", get(security_handlers::crowdsec_status))
+        .route("/crowdsec/enable", post(security_handlers::crowdsec_enable))
+        .route(
+            "/crowdsec/disable",
+            post(security_handlers::crowdsec_disable),
+        )
+        .route("/crowdsec/update", post(security_handlers::crowdsec_update))
+        .route("/crowdsec/rules", post(security_handlers::crowdsec_rules))
+        .route(
+            "/crowdsec/decisions",
+            get(security_handlers::crowdsec_decisions).post(security_handlers::crowdsec_ban),
+        )
+        .route(
+            "/crowdsec/decisions/{id}",
+            axum::routing::delete(security_handlers::crowdsec_unban),
+        )
         .route("/domains", post(resources::save_domain))
         .route(
             "/domains/{id}",
@@ -679,8 +722,18 @@ pub fn router(st: Arc<AppState>) -> Router {
             ApiError(StatusCode::NOT_FOUND, "no such API endpoint".into()).into_response()
         });
 
+    // The sign-in page for sites behind the login wall (Caddy proxies
+    // /sso/* on the sign-in host to the panel).
+    let sso_pages = Router::new()
+        .route("/sso", get(sso::status_page))
+        .route("/sso/", get(sso::status_page))
+        .route("/sso/login", get(sso::login_page).post(sso::login_submit))
+        .route("/sso/enroll", post(sso::enroll_submit))
+        .route("/sso/logout", get(sso::logout));
+
     Router::new()
         .nest("/api", api)
+        .merge(sso_pages)
         .fallback(crate::web::spa)
         .layer(DefaultBodyLimit::max(MAX_BODY))
         .layer(middleware::from_fn_with_state(st.clone(), common))

@@ -153,4 +153,19 @@ CREATE TABLE caddy_builds (
     r#"
 ALTER TABLE config_versions ADD COLUMN model TEXT NOT NULL DEFAULT '';
 "#,
+    // 3: sign-in sessions for sites behind the login wall (server/sso.rs);
+    // separate from panel sessions so one can never be used as the other.
+    r#"
+CREATE TABLE sso_sessions (
+	id         TEXT PRIMARY KEY,
+	user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at TIMESTAMP NOT NULL,
+	expires_at TIMESTAMP NOT NULL,
+	last_seen  TIMESTAMP NOT NULL,
+	ip         TEXT NOT NULL DEFAULT '',
+	user_agent TEXT NOT NULL DEFAULT '',
+	mfa        INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX sso_sessions_user ON sso_sessions(user_id);
+"#,
 ];

@@ -1,6 +1,6 @@
 [package]
 name = "caddymium"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Caddymium: a web UI and API that manages a Caddy server"
@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-axum = { version = "0.8", features = ["http1", "json", "query", "tokio"] }
+axum = { version = "0.8", features = ["http1", "json", "query", "form", "tokio"] }
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
@@ -41,6 +41,9 @@ regex = "1"
 thiserror = "2"
 anyhow = "1"
 tempfile = "3"
+flate2 = "1"
+tar = "0.4"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 url = "2"

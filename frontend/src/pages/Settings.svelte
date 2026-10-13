@@ -84,7 +84,6 @@
     const tp = s.trusted_proxies
     tp.presets = on ? [...new Set([...tp.presets, p])] : tp.presets.filter((x) => x !== p)
   }
-  const crowdsecAvail = $derived((app.meta?.features || []).find((f) => f.id === 'crowdsec')?.available)
   const ro = $derived(!can.admin())
 </script>
 
@@ -194,16 +193,7 @@
           <label class="field"><span>Serve Caddymium itself at</span><input type="text" bind:value={s.panel_domain} placeholder="caddymium.example.com (optional)" />
             <span class="hint">Caddy will proxy this hostname to the panel with HTTPS.</span></label>
         </div>
-        {#if crowdsecAvail}
-          <h2>CrowdSec</h2>
-          <label class="check"><input type="checkbox" bind:checked={s.crowdsec.enabled} /> Enable the CrowdSec bouncer</label>
-          {#if s.crowdsec.enabled}
-            <div class="grid2">
-              <label class="field"><span>Local API URL</span><input type="text" bind:value={s.crowdsec.api_url} /></label>
-              <label class="field"><span>Bouncer API key</span><input type="password" bind:value={csKey} placeholder={s.crowdsec_api_key_set ? '•••••• (saved)' : ''} autocomplete="off" /></label>
-            </div>
-          {/if}
-        {/if}
+        <p class="hint">CrowdSec, bot blocking, login walls and home-only access are on the <a href="#/security">Security</a> page.</p>
         <label class="field"><span>Extra global options</span>
           <textarea rows="8" bind:value={s.raw_global} placeholder="servers {'{'}&#10;&#9;timeouts {'{'}&#10;&#9;&#9;read_body 10s&#10;&#9;{'}'}&#10;{'}'}"></textarea>
           <span class="hint">Placed inside the global <code>{'{ }'}</code> block. Checked by Caddy before every apply.</span></label>

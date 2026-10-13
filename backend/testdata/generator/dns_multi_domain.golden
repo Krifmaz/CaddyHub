@@ -40,7 +40,19 @@ a.b.example.com {
 		}
 		format json
 	}
-	reverse_proxy deep:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy deep:80
+	}
 }
 
 # site 4: Net
@@ -66,7 +78,19 @@ www.example.net {
 		}
 		format json
 	}
-	reverse_proxy net:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy net:80
+	}
 }
 
 # site 5: Org
@@ -85,7 +109,19 @@ example.org {
 		}
 		format json
 	}
-	reverse_proxy org:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy org:80
+	}
 }
 
 # wildcard certificate for example.com
@@ -115,13 +151,37 @@ example.org {
 	# site 1: Vault
 	@site_1 host vault.example.com
 	handle @site_1 {
-		reverse_proxy vaultwarden:80
+		header {
+			-Server
+			?Referrer-Policy same-origin
+			?X-Content-Type-Options nosniff
+			X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+		}
+		route {
+			respond /robots.txt <<ROBOTS
+			User-agent: *
+			Disallow: /
+			ROBOTS 200
+			reverse_proxy vaultwarden:80
+		}
 	}
 
 	# site 2: Jelly
 	@site_2 host media.example.com
 	handle @site_2 {
-		reverse_proxy jellyfin:8096
+		header {
+			-Server
+			?Referrer-Policy same-origin
+			?X-Content-Type-Options nosniff
+			X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+		}
+		route {
+			respond /robots.txt <<ROBOTS
+			User-agent: *
+			Disallow: /
+			ROBOTS 200
+			reverse_proxy jellyfin:8096
+		}
 	}
 
 	# unknown subdomains

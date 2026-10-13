@@ -27,7 +27,19 @@ nas.home.arpa {
 		}
 		format json
 	}
-	reverse_proxy nas:5000
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy nas:5000
+	}
 }
 
 # site 2: Custom
@@ -40,10 +52,22 @@ secure.example.com {
 		}
 		format json
 	}
-	reverse_proxy secure:443 {
-		transport http {
-			tls
-			tls_insecure_skip_verify
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy secure:443 {
+			transport http {
+				tls
+				tls_insecure_skip_verify
+			}
 		}
 	}
 }
@@ -57,7 +81,19 @@ http://plain.example.com {
 		}
 		format json
 	}
-	reverse_proxy plain:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy plain:80
+	}
 }
 
 # site 4: NoRedirect
@@ -69,7 +105,19 @@ http://both.example.com, https://both.example.com {
 		}
 		format json
 	}
-	reverse_proxy both:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy both:80
+	}
 }
 
 # site 5: ToWWW
@@ -81,7 +129,19 @@ www.example.com {
 		}
 		format json
 	}
-	reverse_proxy web:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy web:80
+	}
 }
 
 # site 5: www redirect
@@ -98,7 +158,19 @@ example.net, www.example.org {
 		}
 		format json
 	}
-	reverse_proxy web2:80
+	header {
+		-Server
+		?Referrer-Policy same-origin
+		?X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai"
+	}
+	route {
+		respond /robots.txt <<ROBOTS
+		User-agent: *
+		Disallow: /
+		ROBOTS 200
+		reverse_proxy web2:80
+	}
 }
 
 # site 6: www redirect
